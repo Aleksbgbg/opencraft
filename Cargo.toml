@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["opencraft"]
+
+[profile.release]
+opt-level = 2
+strip = true
+lto = "thin"
