@@ -1,0 +1,36 @@
+stages:
+  - build
+  - lint
+  - test
+
+default:
+  tags:
+    - linux
+
+build:
+  stage: build
+  image: rust:latest
+  needs: []
+  script:
+    - cargo build
+
+format:
+  stage: lint
+  image: rust:latest
+  needs: []
+  script:
+    - cargo fmt --check
+
+clippy:
+  stage: lint
+  image: rust:latest
+  needs: []
+  script:
+    - cargo clippy -- -Dwarnings
+
+test:
+  stage: test
+  image: rust:latest
+  needs: []
+  script:
+    - cargo test
