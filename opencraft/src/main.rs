@@ -1,10 +1,13 @@
 use anyhow::{anyhow, Result};
 use std::iter;
 use wgpu::{
-  Backends, Color, CommandEncoderDescriptor, Device, Features, Instance, InstanceDescriptor,
-  Limits, LoadOp, Operations, PowerPreference, Queue, RenderPassColorAttachment,
-  RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface, SurfaceConfiguration,
-  TextureFormat, TextureUsages, TextureViewDescriptor,
+  include_wgsl, Backends, BlendState, Color, ColorTargetState, ColorWrites,
+  CommandEncoderDescriptor, Device, Face, Features, FragmentState, FrontFace, Instance,
+  InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor,
+  PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology, Queue,
+  RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+  RequestAdapterOptions, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureUsages,
+  TextureViewDescriptor, VertexState,
 };
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::EventLoop;
@@ -59,6 +62,7 @@ struct App<'a> {
   surface: Surface<'a>,
   device: Device,
   queue: Queue,
+  pipeline: RenderPipeline,
 }
 
 impl<'a> App<'a> {
@@ -109,10 +113,52 @@ impl<'a> App<'a> {
 
     surface.configure(&device, &config);
 
+    let shader = device.create_shader_module(include_wgsl!("shaders/simple.wgsl"));
+    let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+      label: Some("Render Pipeline Layout"),
+      bind_group_layouts: &[],
+      push_constant_ranges: &[],
+    });
+    let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+      label: Some("Render Pipeline"),
+      layout: Some(&layout),
+      vertex: VertexState {
+        module: &shader,
+        entry_point: "vs_main",
+        buffers: &[],
+      },
+      fragment: Some(FragmentState {
+        module: &shader,
+        entry_point: "fs_main",
+        targets: &[Some(ColorTargetState {
+          format: config.format,
+          blend: Some(BlendState::REPLACE),
+          write_mask: ColorWrites::ALL,
+        })],
+      }),
+      primitive: PrimitiveState {
+        topology: PrimitiveTopology::TriangleList,
+        strip_index_format: None,
+        front_face: FrontFace::Ccw,
+        cull_mode: Some(Face::Back),
+        unclipped_depth: false,
+        polygon_mode: PolygonMode::Fill,
+        conservative: false,
+      },
+      depth_stencil: None,
+      multisample: MultisampleState {
+        count: 1,
+        mask: !0,
+        alpha_to_coverage_enabled: false,
+      },
+      multiview: None,
+    });
+
     Ok(Self {
       surface,
       device,
       queue,
+      pipeline,
     })
   }
 
@@ -127,25 +173,30 @@ impl<'a> App<'a> {
       .create_command_encoder(&CommandEncoderDescriptor {
         label: Some("Render Encoder"),
       });
-    encoder.begin_render_pass(&RenderPassDescriptor {
-      label: Some("Render Pass"),
-      color_attachments: &[Some(RenderPassColorAttachment {
-        view: &view,
-        resolve_target: None,
-        ops: Operations {
-          load: LoadOp::Clear(Color {
-            r: 0.1,
-            g: 0.2,
-            b: 0.3,
-            a: 1.0,
-          }),
-          store: StoreOp::Store,
-        },
-      })],
-      depth_stencil_attachment: None,
-      occlusion_query_set: None,
-      timestamp_writes: None,
-    });
+    {
+      let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+        label: Some("Render Pass"),
+        color_attachments: &[Some(RenderPassColorAttachment {
+          view: &view,
+          resolve_target: None,
+          ops: Operations {
+            load: LoadOp::Clear(Color {
+              r: 0.1,
+              g: 0.2,
+              b: 0.3,
+              a: 1.0,
+            }),
+            store: StoreOp::Store,
+          },
+        })],
+        depth_stencil_attachment: None,
+        occlusion_query_set: None,
+        timestamp_writes: None,
+      });
+      render_pass.set_pipeline(&self.pipeline);
+      render_pass.draw(0..3, 0..1);
+    }
+
     self.queue.submit(iter::once(encoder.finish()));
 
     output.present();
