@@ -9,6 +9,7 @@ use wgpu::{
   RequestAdapterOptions, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureUsages,
   TextureViewDescriptor, VertexState,
 };
+use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::keyboard::{KeyCode, PhysicalKey};
@@ -27,7 +28,7 @@ async fn start() -> Result<()> {
     .with_title("Opencraft")
     .build(&event_loop)?;
 
-  let app = App::new(&window).await?;
+  let mut app = App::new(&window).await?;
 
   #[allow(clippy::single_match)]
   event_loop.run(|event, target| match event {
@@ -50,6 +51,12 @@ async fn start() -> Result<()> {
           target.exit();
         }
       }
+      WindowEvent::Resized(physical_size) => {
+        app.resize(physical_size);
+      }
+      WindowEvent::ScaleFactorChanged { .. } => {
+        app.resize(window.inner_size());
+      }
       _ => {}
     },
     _ => {}
@@ -62,6 +69,7 @@ struct App<'a> {
   surface: Surface<'a>,
   device: Device,
   queue: Queue,
+  config: SurfaceConfiguration,
   pipeline: RenderPipeline,
 }
 
@@ -158,8 +166,23 @@ impl<'a> App<'a> {
       surface,
       device,
       queue,
+      config,
       pipeline,
     })
+  }
+
+  fn resize(&mut self, PhysicalSize { width, height }: PhysicalSize<u32>) {
+    assert!(
+      (width != 0) && (height != 0),
+      "new window size had a 0 component: ({}, {})",
+      width,
+      height
+    );
+
+    self.config.width = width;
+    self.config.height = height;
+
+    self.surface.configure(&self.device, &self.config);
   }
 
   fn render(&self) -> Result<()> {
