@@ -1,13 +1,16 @@
 use anyhow::{anyhow, Result};
-use std::iter;
+use bytemuck::NoUninit;
+use std::{iter, mem};
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-  include_wgsl, Backends, BlendState, Color, ColorTargetState, ColorWrites,
-  CommandEncoderDescriptor, Device, Face, Features, FragmentState, FrontFace, Instance,
-  InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor,
-  PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology, Queue,
-  RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
-  RequestAdapterOptions, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureUsages,
-  TextureViewDescriptor, VertexState,
+  include_wgsl, vertex_attr_array, Backends, BlendState, Buffer, BufferAddress, BufferUsages,
+  Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device, Face, Features,
+  FragmentState, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState,
+  Operations, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState,
+  PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+  RenderPipelineDescriptor, RequestAdapterOptions, StoreOp, Surface, SurfaceConfiguration,
+  TextureFormat, TextureUsages, TextureViewDescriptor, VertexBufferLayout, VertexState,
+  VertexStepMode,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -65,12 +68,35 @@ async fn start() -> Result<()> {
   Ok(())
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, NoUninit)]
+struct Vertex {
+  position: [f32; 3],
+  color: [f32; 3],
+}
+
+const VERTICES: &[Vertex] = &[
+  Vertex {
+    position: [0.0, 0.5, 0.0],
+    color: [1.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [-0.5, -0.5, 0.0],
+    color: [0.0, 1.0, 0.0],
+  },
+  Vertex {
+    position: [0.5, -0.5, 0.0],
+    color: [0.0, 0.0, 1.0],
+  },
+];
+
 struct App<'a> {
   surface: Surface<'a>,
   device: Device,
   queue: Queue,
   config: SurfaceConfiguration,
   pipeline: RenderPipeline,
+  vertex_buffer: Buffer,
 }
 
 impl<'a> App<'a> {
@@ -133,7 +159,11 @@ impl<'a> App<'a> {
       vertex: VertexState {
         module: &shader,
         entry_point: "vs_main",
-        buffers: &[],
+        buffers: &[VertexBufferLayout {
+          array_stride: mem::size_of::<Vertex>() as BufferAddress,
+          step_mode: VertexStepMode::Vertex,
+          attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x3],
+        }],
       },
       fragment: Some(FragmentState {
         module: &shader,
@@ -162,12 +192,19 @@ impl<'a> App<'a> {
       multiview: None,
     });
 
+    let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Vertex Buffer"),
+      contents: bytemuck::cast_slice(VERTICES),
+      usage: BufferUsages::VERTEX,
+    });
+
     Ok(Self {
       surface,
       device,
       queue,
       config,
       pipeline,
+      vertex_buffer,
     })
   }
 
@@ -217,7 +254,8 @@ impl<'a> App<'a> {
         timestamp_writes: None,
       });
       render_pass.set_pipeline(&self.pipeline);
-      render_pass.draw(0..3, 0..1);
+      render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+      render_pass.draw(0..VERTICES.len() as u32, 0..1);
     }
 
     self.queue.submit(iter::once(encoder.finish()));

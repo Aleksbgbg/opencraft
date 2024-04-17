@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.82", default-features = false, features = ["backtrace", "std"] }
+bytemuck = { version = "1.15.0", default-features = false, features = ["derive"] }
 env_logger = { version = "0.11.3", default-features = false, features = ["auto-color"] }
 pollster = { version = "0.3.0", default-features = false }
 wgpu = { version = "0.19.3", default-features = false, features = ["wgsl"] }
