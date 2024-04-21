@@ -1,18 +1,26 @@
+#![feature(duration_millis_float)]
+
+mod core;
+
+use crate::core::math::angle::Degrees;
+use crate::core::math::mat4::{self, Mat4x4};
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
 use std::time::{Duration, Instant};
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-  include_wgsl, vertex_attr_array, Backends, BlendState, Buffer, BufferAddress, BufferUsages,
-  Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
-  DepthStencilState, Device, Extent3d, Face, Features, FragmentState, FrontFace, Instance,
-  InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor,
-  PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology, Queue,
-  RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-  RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, StencilState, StoreOp, Surface,
-  SurfaceConfiguration, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-  TextureView, TextureViewDescriptor, VertexBufferLayout, VertexState, VertexStepMode,
+  include_wgsl, vertex_attr_array, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry,
+  BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferAddress,
+  BufferBindingType, BufferUsages, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor,
+  CompareFunction, DepthBiasState, DepthStencilState, Device, Extent3d, Face, Features,
+  FragmentState, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState,
+  Operations, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState,
+  PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
+  RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+  ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration, TextureDescriptor,
+  TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+  VertexBufferLayout, VertexState, VertexStepMode,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -72,6 +80,21 @@ async fn start() -> Result<()> {
   Ok(())
 }
 
+const FOV: Degrees = Degrees::new(75.0);
+const Z_NEAR: f32 = 0.01;
+const Z_FAR: f32 = 1000.0;
+
+const CUBE_SIZE: f32 = 1.0;
+const CUBE_HALF: f32 = CUBE_SIZE / 2.0;
+const CUBE_TRANSLATE: (f32, f32, f32) = (0.0, 0.0, 3.0);
+
+const BACK: f32 = CUBE_HALF;
+const FRONT: f32 = -CUBE_HALF;
+const BOTTOM: f32 = -CUBE_HALF;
+const TOP: f32 = CUBE_HALF;
+const LEFT: f32 = -CUBE_HALF;
+const RIGHT: f32 = CUBE_HALF;
+
 #[repr(C)]
 #[derive(Clone, Copy, NoUninit)]
 struct Vertex {
@@ -80,40 +103,170 @@ struct Vertex {
 }
 
 const VERTICES: &[Vertex] = &[
+  // Front face
   Vertex {
-    position: [-0.8, 0.8, 0.0],
-    color: [1.0, 0.0, 0.0],
+    position: [LEFT, TOP, FRONT],
+    color: [0.0, 1.0, 1.0],
   },
   Vertex {
-    position: [-0.8, -0.8, 0.0],
-    color: [0.0, 1.0, 0.0],
-  },
-  Vertex {
-    position: [0.8, 0.8, 0.0],
+    position: [LEFT, BOTTOM, FRONT],
     color: [0.0, 0.0, 1.0],
   },
   Vertex {
-    position: [0.8, 0.8, 0.0],
+    position: [RIGHT, TOP, FRONT],
+    color: [1.0, 1.0, 1.0],
+  },
+  Vertex {
+    position: [RIGHT, TOP, FRONT],
+    color: [1.0, 1.0, 1.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, FRONT],
     color: [0.0, 0.0, 1.0],
   },
   Vertex {
-    position: [-0.8, -0.8, 0.0],
+    position: [RIGHT, BOTTOM, FRONT],
+    color: [1.0, 0.0, 1.0],
+  },
+  // Back face
+  Vertex {
+    position: [LEFT, TOP, BACK],
     color: [0.0, 1.0, 0.0],
   },
   Vertex {
-    position: [0.8, -0.8, 0.0],
+    position: [RIGHT, TOP, BACK],
+    color: [1.0, 1.0, 0.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, BACK],
+    color: [0.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [RIGHT, BOTTOM, BACK],
     color: [1.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, BACK],
+    color: [0.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [RIGHT, TOP, BACK],
+    color: [1.0, 1.0, 0.0],
+  },
+  // Top face
+  Vertex {
+    position: [LEFT, TOP, BACK],
+    color: [0.0, 1.0, 0.0],
+  },
+  Vertex {
+    position: [LEFT, TOP, FRONT],
+    color: [0.0, 1.0, 1.0],
+  },
+  Vertex {
+    position: [RIGHT, TOP, BACK],
+    color: [1.0, 1.0, 0.0],
+  },
+  Vertex {
+    position: [RIGHT, TOP, BACK],
+    color: [1.0, 1.0, 0.0],
+  },
+  Vertex {
+    position: [LEFT, TOP, FRONT],
+    color: [0.0, 1.0, 1.0],
+  },
+  Vertex {
+    position: [RIGHT, TOP, FRONT],
+    color: [1.0, 1.0, 1.0],
+  },
+  // Bottom face
+  Vertex {
+    position: [RIGHT, BOTTOM, FRONT],
+    color: [1.0, 0.0, 1.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, FRONT],
+    color: [0.0, 0.0, 1.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, BACK],
+    color: [0.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, BACK],
+    color: [0.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [RIGHT, BOTTOM, BACK],
+    color: [1.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [RIGHT, BOTTOM, FRONT],
+    color: [1.0, 0.0, 1.0],
+  },
+  // Left face
+  Vertex {
+    position: [LEFT, TOP, BACK],
+    color: [0.0, 1.0, 0.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, BACK],
+    color: [0.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [LEFT, TOP, FRONT],
+    color: [0.0, 1.0, 1.0],
+  },
+  Vertex {
+    position: [LEFT, TOP, FRONT],
+    color: [0.0, 1.0, 1.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, BACK],
+    color: [0.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [LEFT, BOTTOM, FRONT],
+    color: [0.0, 0.0, 1.0],
+  },
+  // Right face
+  Vertex {
+    position: [RIGHT, TOP, BACK],
+    color: [1.0, 1.0, 0.0],
+  },
+  Vertex {
+    position: [RIGHT, TOP, FRONT],
+    color: [1.0, 1.0, 1.0],
+  },
+  Vertex {
+    position: [RIGHT, BOTTOM, BACK],
+    color: [1.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [RIGHT, BOTTOM, BACK],
+    color: [1.0, 0.0, 0.0],
+  },
+  Vertex {
+    position: [RIGHT, TOP, FRONT],
+    color: [1.0, 1.0, 1.0],
+  },
+  Vertex {
+    position: [RIGHT, BOTTOM, FRONT],
+    color: [1.0, 0.0, 1.0],
   },
 ];
 
 struct App<'a> {
   start: Instant,
 
+  transform: Mat4x4,
+
   surface: Surface<'a>,
   device: Device,
   queue: Queue,
   config: SurfaceConfiguration,
   depth_view: TextureView,
+  transform_buffer: Buffer,
+  transform_bind_group: BindGroup,
   pipeline: RenderPipeline,
   vertex_buffer: Buffer,
 }
@@ -188,10 +341,38 @@ impl<'a> App<'a> {
 
     let depth_view = create_depth_texture(&device, &config);
 
+    let transform = Mat4x4::default();
+    let transform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Model -> Clip Space Transform Buffer"),
+      contents: bytemuck::cast_slice(&[transform]),
+      usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+    });
+    let transform_buffer_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+      label: Some("Transform Buffer Bind Group Layout"),
+      entries: &[BindGroupLayoutEntry {
+        binding: 0,
+        visibility: ShaderStages::VERTEX,
+        ty: BindingType::Buffer {
+          ty: BufferBindingType::Uniform,
+          has_dynamic_offset: false,
+          min_binding_size: None,
+        },
+        count: None,
+      }],
+    });
+    let transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Transform Buffer Bind Group"),
+      layout: &transform_buffer_layout,
+      entries: &[BindGroupEntry {
+        binding: 0,
+        resource: transform_buffer.as_entire_binding(),
+      }],
+    });
+
     let shader = device.create_shader_module(include_wgsl!("shaders/simple.wgsl"));
     let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Render Pipeline Layout"),
-      bind_group_layouts: &[],
+      bind_group_layouts: &[&transform_buffer_layout],
       push_constant_ranges: &[],
     });
     let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -247,14 +428,21 @@ impl<'a> App<'a> {
 
     Ok(Self {
       start: Instant::now(),
+      transform,
       surface,
       device,
       queue,
       config,
       depth_view,
+      transform_buffer,
+      transform_bind_group,
       pipeline,
       vertex_buffer,
     })
+  }
+
+  fn size(&self) -> PhysicalSize<u32> {
+    PhysicalSize::new(self.config.width, self.config.height)
   }
 
   fn resize(&mut self, PhysicalSize { width, height }: PhysicalSize<u32>) {
@@ -280,7 +468,14 @@ impl<'a> App<'a> {
     Ok(())
   }
 
-  fn update(&mut self, _delta: Duration) {}
+  fn update(&mut self, delta: Duration) {
+    let delta_millis = delta.as_millis_f32();
+
+    let PhysicalSize { width, height } = self.size();
+    self.transform = mat4::perspective(width as f32, height as f32, FOV, Z_NEAR, Z_FAR)
+      * mat4::translate(CUBE_TRANSLATE)
+      * mat4::rotate(Degrees::new(0.1 * delta_millis));
+  }
 
   fn render(&self) -> Result<()> {
     let output = self.surface.get_current_texture()?;
@@ -321,10 +516,16 @@ impl<'a> App<'a> {
         timestamp_writes: None,
       });
       render_pass.set_pipeline(&self.pipeline);
+      render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
       render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
       render_pass.draw(0..VERTICES.len() as u32, 0..1);
     }
 
+    self.queue.write_buffer(
+      &self.transform_buffer,
+      0,
+      bytemuck::cast_slice(&[self.transform]),
+    );
     self.queue.submit(iter::once(encoder.finish()));
 
     output.present();
