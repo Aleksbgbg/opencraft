@@ -4,13 +4,14 @@ use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
   include_wgsl, vertex_attr_array, Backends, BlendState, Buffer, BufferAddress, BufferUsages,
-  Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device, Face, Features,
-  FragmentState, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState,
-  Operations, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState,
-  PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-  RenderPipelineDescriptor, RequestAdapterOptions, StoreOp, Surface, SurfaceConfiguration,
-  TextureFormat, TextureUsages, TextureViewDescriptor, VertexBufferLayout, VertexState,
-  VertexStepMode,
+  Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
+  DepthStencilState, Device, Extent3d, Face, Features, FragmentState, FrontFace, Instance,
+  InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor,
+  PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology, Queue,
+  RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+  RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, StencilState, StoreOp, Surface,
+  SurfaceConfiguration, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+  TextureView, TextureViewDescriptor, VertexBufferLayout, VertexState, VertexStepMode,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -109,8 +110,29 @@ struct App<'a> {
   device: Device,
   queue: Queue,
   config: SurfaceConfiguration,
+  depth_view: TextureView,
   pipeline: RenderPipeline,
   vertex_buffer: Buffer,
+}
+
+const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+fn create_depth_texture(device: &Device, config: &SurfaceConfiguration) -> TextureView {
+  let texture = device.create_texture(&TextureDescriptor {
+    label: Some("Depth Texture"),
+    size: Extent3d {
+      width: config.width,
+      height: config.height,
+      depth_or_array_layers: 1,
+    },
+    mip_level_count: 1,
+    sample_count: 1,
+    dimension: TextureDimension::D2,
+    format: DEPTH_FORMAT,
+    usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+    view_formats: &[],
+  });
+
+  texture.create_view(&TextureViewDescriptor::default())
 }
 
 impl<'a> App<'a> {
@@ -161,6 +183,8 @@ impl<'a> App<'a> {
 
     surface.configure(&device, &config);
 
+    let depth_view = create_depth_texture(&device, &config);
+
     let shader = device.create_shader_module(include_wgsl!("shaders/simple.wgsl"));
     let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Render Pipeline Layout"),
@@ -197,7 +221,13 @@ impl<'a> App<'a> {
         polygon_mode: PolygonMode::Fill,
         conservative: false,
       },
-      depth_stencil: None,
+      depth_stencil: Some(DepthStencilState {
+        format: DEPTH_FORMAT,
+        depth_write_enabled: true,
+        depth_compare: CompareFunction::Less,
+        stencil: StencilState::default(),
+        bias: DepthBiasState::default(),
+      }),
       multisample: MultisampleState {
         count: 1,
         mask: !0,
@@ -217,6 +247,7 @@ impl<'a> App<'a> {
       device,
       queue,
       config,
+      depth_view,
       pipeline,
       vertex_buffer,
     })
@@ -234,6 +265,8 @@ impl<'a> App<'a> {
     self.config.height = height;
 
     self.surface.configure(&self.device, &self.config);
+
+    self.depth_view = create_depth_texture(&self.device, &self.config);
   }
 
   fn render(&self) -> Result<()> {
@@ -263,7 +296,14 @@ impl<'a> App<'a> {
             store: StoreOp::Store,
           },
         })],
-        depth_stencil_attachment: None,
+        depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+          view: &self.depth_view,
+          depth_ops: Some(Operations {
+            load: LoadOp::Clear(1.0),
+            store: StoreOp::Store,
+          }),
+          stencil_ops: None,
+        }),
         occlusion_query_set: None,
         timestamp_writes: None,
       });
