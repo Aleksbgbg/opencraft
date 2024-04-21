@@ -33,7 +33,6 @@ async fn start() -> Result<()> {
 
   let mut app = App::new(&window).await?;
 
-  #[allow(clippy::single_match)]
   event_loop.run(|event, target| match event {
     Event::WindowEvent { event, .. } => match event {
       WindowEvent::CloseRequested
@@ -62,6 +61,9 @@ async fn start() -> Result<()> {
       }
       _ => {}
     },
+    Event::AboutToWait => {
+      window.request_redraw();
+    }
     _ => {}
   })?;
 
