@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
+use std::time::{Duration, Instant};
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
@@ -49,8 +50,8 @@ async fn start() -> Result<()> {
         target.exit();
       }
       WindowEvent::RedrawRequested => {
-        if let Err(err) = app.render() {
-          eprintln!("Error during render: {:?}", err);
+        if let Err(err) = app.compose() {
+          eprintln!("Error during composition loop: {:?}", err);
           target.exit();
         }
       }
@@ -106,6 +107,8 @@ const VERTICES: &[Vertex] = &[
 ];
 
 struct App<'a> {
+  start: Instant,
+
   surface: Surface<'a>,
   device: Device,
   queue: Queue,
@@ -243,6 +246,7 @@ impl<'a> App<'a> {
     });
 
     Ok(Self {
+      start: Instant::now(),
       surface,
       device,
       queue,
@@ -268,6 +272,15 @@ impl<'a> App<'a> {
 
     self.depth_view = create_depth_texture(&self.device, &self.config);
   }
+
+  fn compose(&mut self) -> Result<()> {
+    self.update(self.start.elapsed());
+    self.render()?;
+
+    Ok(())
+  }
+
+  fn update(&mut self, _delta: Duration) {}
 
   fn render(&self) -> Result<()> {
     let output = self.surface.get_current_texture()?;
