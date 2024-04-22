@@ -2,7 +2,7 @@
 
 mod core;
 
-use crate::core::math::angle::Degrees;
+use crate::core::math::angle::{Degrees, Radians};
 use crate::core::math::mat4::{self, Mat4x4};
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
@@ -258,7 +258,7 @@ const VERTICES: &[Vertex] = &[
 struct App<'a> {
   last: Instant,
 
-  rotation: Degrees,
+  rotation: Radians,
   transform: Mat4x4,
 
   surface: Surface<'a>,
@@ -429,7 +429,7 @@ impl<'a> App<'a> {
 
     Ok(Self {
       last: Instant::now(),
-      rotation: Degrees::new(0.0),
+      rotation: Radians::new(0.0),
       transform,
       surface,
       device,
@@ -476,7 +476,8 @@ impl<'a> App<'a> {
   fn update(&mut self, delta: Duration) {
     let delta_millis = delta.as_millis_f32();
 
-    self.rotation += Degrees::new(0.1 * delta_millis);
+    self.rotation += Degrees::new(0.1 * delta_millis).radians();
+    self.rotation = self.rotation.clamp();
 
     let PhysicalSize { width, height } = self.size();
     self.transform = mat4::perspective(width as f32, height as f32, FOV, Z_NEAR, Z_FAR)

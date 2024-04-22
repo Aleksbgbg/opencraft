@@ -1,3 +1,4 @@
+use crate::core::math::clamp;
 use std::f32::consts::PI;
 use std::ops::AddAssign;
 
@@ -15,6 +16,10 @@ impl Degrees {
 
   pub const fn value(self) -> f32 {
     self.0
+  }
+
+  pub fn radians(self) -> Radians {
+    self.into()
   }
 }
 
@@ -34,6 +39,16 @@ impl Radians {
 
   pub const fn value(self) -> f32 {
     self.0
+  }
+
+  pub fn clamp(self) -> Self {
+    clamp::rotation(self)
+  }
+}
+
+impl AddAssign for Radians {
+  fn add_assign(&mut self, rhs: Self) {
+    self.0 += rhs.value();
   }
 }
 
