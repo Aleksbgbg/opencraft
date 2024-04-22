@@ -256,8 +256,9 @@ const VERTICES: &[Vertex] = &[
 ];
 
 struct App<'a> {
-  start: Instant,
+  last: Instant,
 
+  rotation: Degrees,
   transform: Mat4x4,
 
   surface: Surface<'a>,
@@ -427,7 +428,8 @@ impl<'a> App<'a> {
     });
 
     Ok(Self {
-      start: Instant::now(),
+      last: Instant::now(),
+      rotation: Degrees::new(0.0),
       transform,
       surface,
       device,
@@ -462,7 +464,10 @@ impl<'a> App<'a> {
   }
 
   fn compose(&mut self) -> Result<()> {
-    self.update(self.start.elapsed());
+    let elapsed = self.last.elapsed();
+    self.last = Instant::now();
+
+    self.update(elapsed);
     self.render()?;
 
     Ok(())
@@ -471,10 +476,12 @@ impl<'a> App<'a> {
   fn update(&mut self, delta: Duration) {
     let delta_millis = delta.as_millis_f32();
 
+    self.rotation += Degrees::new(0.1 * delta_millis);
+
     let PhysicalSize { width, height } = self.size();
     self.transform = mat4::perspective(width as f32, height as f32, FOV, Z_NEAR, Z_FAR)
       * mat4::translate(CUBE_TRANSLATE)
-      * mat4::rotate(Degrees::new(0.1 * delta_millis));
+      * mat4::rotate(self.rotation);
   }
 
   fn render(&self) -> Result<()> {
