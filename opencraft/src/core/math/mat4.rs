@@ -1,5 +1,7 @@
 use crate::core::math::angle::Angle;
+use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
+use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use bytemuck::NoUninit;
 use std::ops::{Index, IndexMut, Mul};
 
@@ -77,13 +79,21 @@ pub fn translate(offset: Vec3) -> Mat4x4 {
   mat
 }
 
-pub fn rotate<A: Angle>(angle: A) -> Mat4x4 {
+pub fn rotate(rotor: Rotor3) -> Mat4x4 {
+  let basis_x = rotor.rotate(X_AXIS);
+  let basis_y = rotor.rotate(Y_AXIS);
+  let basis_z = rotor.rotate(Z_AXIS);
+
   let mut mat = Mat4x4::default();
-  mat[(0, 0)] = angle.cos();
-  mat[(0, 2)] = -angle.sin();
-  mat[(1, 1)] = 1.0;
-  mat[(2, 0)] = angle.sin();
-  mat[(2, 2)] = angle.cos();
+  mat[(0, 0)] = basis_x.x();
+  mat[(0, 1)] = basis_x.y();
+  mat[(0, 2)] = basis_x.z();
+  mat[(1, 0)] = basis_y.x();
+  mat[(1, 1)] = basis_y.y();
+  mat[(1, 2)] = basis_y.z();
+  mat[(2, 0)] = basis_z.x();
+  mat[(2, 1)] = basis_z.y();
+  mat[(2, 2)] = basis_z.z();
   mat[(3, 3)] = 1.0;
   mat
 }

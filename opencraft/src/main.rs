@@ -4,7 +4,9 @@ mod core;
 
 use crate::core::math::angle::Degrees;
 use crate::core::math::mat4::{self, Mat4x4};
+use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
+use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
 use std::time::{Duration, Instant};
@@ -483,7 +485,12 @@ impl<'a> App<'a> {
     let PhysicalSize { width, height } = self.size();
     self.transform = mat4::perspective(width as f32, height as f32, FOV, Z_NEAR, Z_FAR)
       * mat4::translate(CUBE_TRANSLATE)
-      * mat4::rotate(self.rotation);
+      * mat4::rotate({
+        let a = (X_AXIS + Y_AXIS + Z_AXIS).norm();
+        let b = a.angle_axis_rotate(self.rotation, a.perpendicular());
+
+        Rotor3::new(a, b)
+      })
   }
 
   fn render(&self) -> Result<()> {
