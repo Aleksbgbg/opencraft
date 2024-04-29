@@ -1,4 +1,5 @@
 use crate::core::math::angle::Angle;
+use crate::core::math::vec3::Vec3;
 use bytemuck::NoUninit;
 use std::ops::{Index, IndexMut, Mul};
 
@@ -68,11 +69,11 @@ pub fn perspective<A: Angle>(width: f32, height: f32, fov: A, z_near: f32, z_far
   mat
 }
 
-pub fn translate((x, y, z): (f32, f32, f32)) -> Mat4x4 {
+pub fn translate(offset: Vec3) -> Mat4x4 {
   let mut mat = Mat4x4::identity();
-  mat[(3, 0)] = x;
-  mat[(3, 1)] = y;
-  mat[(3, 2)] = z;
+  mat[(3, 0)] = offset.x();
+  mat[(3, 1)] = offset.y();
+  mat[(3, 2)] = offset.z();
   mat
 }
 

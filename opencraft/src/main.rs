@@ -4,6 +4,7 @@ mod core;
 
 use crate::core::math::angle::Degrees;
 use crate::core::math::mat4::{self, Mat4x4};
+use crate::core::math::vec3::Vec3;
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
 use std::time::{Duration, Instant};
@@ -86,7 +87,7 @@ const Z_FAR: f32 = 1000.0;
 
 const CUBE_SIZE: f32 = 1.0;
 const CUBE_HALF: f32 = CUBE_SIZE / 2.0;
-const CUBE_TRANSLATE: (f32, f32, f32) = (0.0, 0.0, 3.0);
+const CUBE_TRANSLATE: Vec3 = Vec3::new(0.0, 0.0, 3.0);
 
 const BACK: f32 = CUBE_HALF;
 const FRONT: f32 = -CUBE_HALF;
