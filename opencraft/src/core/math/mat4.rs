@@ -1,4 +1,4 @@
-use crate::core::math::angle::Radians;
+use crate::core::math::angle::Angle;
 use bytemuck::NoUninit;
 use std::ops::{Index, IndexMut, Mul};
 
@@ -54,12 +54,9 @@ impl Mul<Mat4x4> for Mat4x4 {
   }
 }
 
-pub fn perspective<A>(width: f32, height: f32, fov: A, z_near: f32, z_far: f32) -> Mat4x4
-where
-  A: Into<Radians>,
-{
+pub fn perspective<A: Angle>(width: f32, height: f32, fov: A, z_near: f32, z_far: f32) -> Mat4x4 {
   let aspect_ratio = height / width;
-  let fov_scale = 1.0 / (fov.into().value() / 2.0).tan();
+  let fov_scale = 1.0 / (fov / 2.0).tan();
   let depth_scale = z_far / (z_far - z_near);
 
   let mut mat = Mat4x4::default();
@@ -79,12 +76,7 @@ pub fn translate((x, y, z): (f32, f32, f32)) -> Mat4x4 {
   mat
 }
 
-pub fn rotate<A>(angle: A) -> Mat4x4
-where
-  A: Into<Radians>,
-{
-  let angle = angle.into().value();
-
+pub fn rotate<A: Angle>(angle: A) -> Mat4x4 {
   let mut mat = Mat4x4::default();
   mat[(0, 0)] = angle.cos();
   mat[(0, 2)] = -angle.sin();
