@@ -57,6 +57,8 @@ impl Vec3 {
   }
 
   pub fn norm(self) -> Self {
+    assert!(self.len_sq() > 0.0, "cannot normalize the zero vector");
+
     let len = self.len();
     Self::new(self.x() / len, self.y() / len, self.z() / len)
   }
