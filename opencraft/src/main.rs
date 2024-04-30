@@ -9,6 +9,7 @@ use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
@@ -48,16 +49,7 @@ async fn start() -> Result<()> {
 
   event_loop.run(|event, target| match event {
     Event::WindowEvent { event, .. } => match event {
-      WindowEvent::CloseRequested
-      | WindowEvent::KeyboardInput {
-        event:
-          KeyEvent {
-            state: ElementState::Pressed,
-            physical_key: PhysicalKey::Code(KeyCode::Escape),
-            ..
-          },
-        ..
-      } => {
+      WindowEvent::CloseRequested => {
         target.exit();
       }
       WindowEvent::RedrawRequested => {
@@ -72,6 +64,28 @@ async fn start() -> Result<()> {
       WindowEvent::ScaleFactorChanged { .. } => {
         app.resize(window.inner_size());
       }
+      WindowEvent::KeyboardInput {
+        event: KeyEvent {
+          state,
+          physical_key,
+          ..
+        },
+        ..
+      } => match state {
+        ElementState::Pressed => {
+          if let PhysicalKey::Code(code) = physical_key {
+            match code {
+              KeyCode::Escape => target.exit(),
+              code => app.press(code),
+            }
+          }
+        }
+        ElementState::Released => {
+          if let PhysicalKey::Code(code) = physical_key {
+            app.release(code)
+          }
+        }
+      },
       _ => {}
     },
     Event::AboutToWait => {
@@ -258,9 +272,34 @@ const VERTICES: &[Vertex] = &[
   },
 ];
 
+#[derive(Default)]
+struct Camera {
+  position: Vec3,
+}
+
+impl Camera {
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  pub fn translate(&mut self, offset: Vec3) {
+    self.position += offset;
+  }
+
+  /// Returns a transformation to be applied on the world to simulate the
+  /// position of the camera. The world transformation will be the inverse of
+  /// all movements applied on the camera, as (for example) moving the camera
+  /// backwards can be simulated by moving the entire world forwards.
+  pub fn world_transform(&self) -> Mat4x4 {
+    mat4::translate(-self.position)
+  }
+}
+
 struct App<'a> {
   last: Instant,
 
+  camera: Camera,
+  keys_down: HashSet<KeyCode>,
   rotation: Degrees,
   transform: Mat4x4,
 
@@ -432,6 +471,8 @@ impl<'a> App<'a> {
 
     Ok(Self {
       last: Instant::now(),
+      camera: Camera::new(),
+      keys_down: HashSet::new(),
       rotation: Degrees::new(0.0),
       transform,
       surface,
@@ -476,14 +517,42 @@ impl<'a> App<'a> {
     Ok(())
   }
 
+  fn press(&mut self, code: KeyCode) {
+    self.keys_down.insert(code);
+  }
+
+  fn release(&mut self, code: KeyCode) {
+    self.keys_down.remove(&code);
+  }
+
   fn update(&mut self, delta: Duration) {
+    const CUBE_ROTATION_SPEED: f32 = 100.0;
+    const CAMERA_MOVEMENT_SPEED: f32 = 10.0;
+
     let delta_secs = delta.as_secs_f32();
 
-    self.rotation += Degrees::new(100.0 * delta_secs);
+    self.rotation += Degrees::new(CUBE_ROTATION_SPEED * delta_secs);
     self.rotation = self.rotation.clamp();
+
+    let mut camera_movement = Vec3::default();
+    for key in &self.keys_down {
+      match key {
+        KeyCode::KeyW => camera_movement += Z_AXIS,
+        KeyCode::KeyS => camera_movement -= Z_AXIS,
+        KeyCode::KeyA => camera_movement -= X_AXIS,
+        KeyCode::KeyD => camera_movement += X_AXIS,
+        _ => {}
+      }
+    }
+    if camera_movement.len_sq() > 0.0 {
+      self
+        .camera
+        .translate(CAMERA_MOVEMENT_SPEED * delta_secs * camera_movement.norm());
+    }
 
     let PhysicalSize { width, height } = self.size();
     self.transform = mat4::perspective(width as f32, height as f32, FOV, Z_NEAR, Z_FAR)
+      * self.camera.world_transform()
       * mat4::translate(CUBE_TRANSLATE)
       * mat4::rotate({
         let a = (X_AXIS + Y_AXIS + Z_AXIS).norm();

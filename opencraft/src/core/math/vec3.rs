@@ -2,7 +2,9 @@ use crate::core::math::angle::Angle;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-#[derive(Clone, Copy, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign)]
+#[derive(
+  Clone, Copy, Default, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
+)]
 pub struct Vec3 {
   x: f32,
   y: f32,
@@ -47,7 +49,11 @@ impl Vec3 {
   }
 
   pub fn len(self) -> f32 {
-    Self::dot(self, self).sqrt()
+    self.len_sq().sqrt()
+  }
+
+  pub fn len_sq(self) -> f32 {
+    Self::dot(self, self)
   }
 
   pub fn norm(self) -> Self {
