@@ -477,9 +477,9 @@ impl<'a> App<'a> {
   }
 
   fn update(&mut self, delta: Duration) {
-    let delta_millis = delta.as_millis_f32();
+    let delta_secs = delta.as_secs_f32();
 
-    self.rotation += Degrees::new(0.1 * delta_millis);
+    self.rotation += Degrees::new(100.0 * delta_secs);
     self.rotation = self.rotation.clamp();
 
     let PhysicalSize { width, height } = self.size();
