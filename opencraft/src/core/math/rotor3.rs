@@ -1,4 +1,5 @@
 use crate::core::math::vec3::Vec3;
+use std::ops::{Mul, Neg};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Rotor3 {
@@ -47,5 +48,34 @@ impl Rotor3 {
       -(s_x * self.xy) + (s_y * self.scalar) + (s_z * self.yz) + (s_xyz * self.zx),
       (s_x * self.zx) - (s_y * self.yz) + (s_z * self.scalar) + (s_xyz * self.xy),
     )
+  }
+}
+
+impl Neg for Rotor3 {
+  type Output = Self;
+
+  fn neg(self) -> Self::Output {
+    Self {
+      scalar: self.scalar,
+      xy: -self.xy,
+      yz: -self.yz,
+      zx: -self.zx,
+    }
+  }
+}
+
+impl Mul<Rotor3> for Rotor3 {
+  type Output = Self;
+
+  fn mul(self, rhs: Rotor3) -> Self::Output {
+    Self {
+      scalar: (self.scalar * rhs.scalar)
+        - (self.xy * rhs.xy)
+        - (self.yz * rhs.yz)
+        - (self.zx * rhs.zx),
+      xy: (self.scalar * rhs.xy) + (self.xy * rhs.scalar) - (self.yz * rhs.zx) + (self.zx * rhs.yz),
+      yz: (self.scalar * rhs.yz) + (self.xy * rhs.zx) + (self.yz * rhs.scalar) - (self.zx * rhs.xy),
+      zx: (self.scalar * rhs.zx) - (self.xy * rhs.yz) + (self.yz * rhs.xy) + (self.zx * rhs.scalar),
+    }
   }
 }

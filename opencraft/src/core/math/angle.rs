@@ -1,4 +1,4 @@
-use crate::core::math::{self, clamp};
+use crate::core::math::{self, clamp, FULL_ROTATION};
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::f32::consts::PI;
 use std::fmt::Debug;
@@ -111,6 +111,10 @@ impl Radians {
 
   const fn value(self) -> f32 {
     self.0
+  }
+
+  pub fn clamp(self) -> Self {
+    Self::new(clamp::end(self.value(), ..=FULL_ROTATION.value()))
   }
 }
 

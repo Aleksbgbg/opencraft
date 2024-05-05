@@ -2,11 +2,11 @@
 
 mod core;
 
-use crate::core::math::angle::Degrees;
+use crate::core::math::angle::{Degrees, Radians};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
-use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
+use crate::core::math::{FULL_ROTATION, HALF_ROTATION, QUARTER_ROTATION, X_AXIS, Y_AXIS, Z_AXIS};
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
 use std::collections::HashSet;
@@ -27,10 +27,10 @@ use wgpu::{
   VertexBufferLayout, VertexState, VertexStepMode,
 };
 use winit::dpi::PhysicalSize;
-use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
+use winit::event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::window::{Window, WindowBuilder};
+use winit::window::{CursorGrabMode, Window, WindowBuilder};
 
 fn main() -> Result<()> {
   pollster::block_on(start())?;
@@ -44,6 +44,8 @@ async fn start() -> Result<()> {
   let window = WindowBuilder::new()
     .with_title("Opencraft")
     .build(&event_loop)?;
+  window.set_cursor_grab(CursorGrabMode::Confined)?;
+  window.set_cursor_visible(false);
 
   let mut app = App::new(&window).await?;
 
@@ -88,6 +90,12 @@ async fn start() -> Result<()> {
       },
       _ => {}
     },
+    Event::DeviceEvent {
+      event: DeviceEvent::MouseMotion { delta: (x, y) },
+      ..
+    } => {
+      app.motion(x as f32, y as f32);
+    }
     Event::AboutToWait => {
       window.request_redraw();
     }
@@ -275,6 +283,8 @@ const VERTICES: &[Vertex] = &[
 #[derive(Default)]
 struct Camera {
   position: Vec3,
+  rotation_x: Radians,
+  rotation_y: Radians,
 }
 
 impl Camera {
@@ -282,16 +292,45 @@ impl Camera {
     Self::default()
   }
 
+  fn rotor(rotation_x: Radians, rotation_y: Radians) -> Rotor3 {
+    let rotor_x = {
+      let orientation_x = Z_AXIS.angle_axis_rotate(rotation_x, X_AXIS);
+      Rotor3::new(Z_AXIS, orientation_x)
+    };
+    let rotor_y = if rotation_y == HALF_ROTATION {
+      let midpoint = Z_AXIS.angle_axis_rotate(QUARTER_ROTATION, Y_AXIS);
+      Rotor3::new(Z_AXIS, midpoint) * Rotor3::new(midpoint, -Z_AXIS)
+    } else {
+      let orientation_y = Z_AXIS.angle_axis_rotate(rotation_y, Y_AXIS);
+      Rotor3::new(Z_AXIS, orientation_y)
+    };
+
+    rotor_x * rotor_y
+  }
+
   pub fn translate(&mut self, offset: Vec3) {
-    self.position += offset;
+    self.position += Self::rotor(self.rotation_x, self.rotation_y).rotate(offset);
+  }
+
+  pub fn rotate<X: Into<Radians>, Y: Into<Radians>>(&mut self, x: X, y: Y) {
+    self.rotation_x += x.into();
+    self.rotation_y += y.into();
+
+    self.rotation_x = self.rotation_x.clamp();
+    self.rotation_y = self.rotation_y.clamp();
   }
 
   /// Returns a transformation to be applied on the world to simulate the
   /// position of the camera. The world transformation will be the inverse of
   /// all movements applied on the camera, as (for example) moving the camera
   /// backwards can be simulated by moving the entire world forwards.
-  pub fn world_transform(&self) -> Mat4x4 {
-    mat4::translate(-self.position)
+  pub fn world_transform(&self, reverse: bool) -> Mat4x4 {
+    let rotation_y = if reverse {
+      self.rotation_y + HALF_ROTATION
+    } else {
+      self.rotation_y
+    };
+    mat4::rotate(-Self::rotor(self.rotation_x, rotation_y)) * mat4::translate(-self.position)
   }
 }
 
@@ -525,6 +564,22 @@ impl<'a> App<'a> {
     self.keys_down.remove(&code);
   }
 
+  fn motion(&mut self, x: f32, y: f32) {
+    const MOVEMENT_SPEED: Radians = FULL_ROTATION;
+
+    let width = self.config.width as f32;
+    let height = self.config.height as f32;
+
+    let delta_x = x / width;
+    let delta_y = y / height;
+
+    // Swap axes as we want the mouse movement across the screen (x) to rotate
+    // across the Y axis and vice-versa.
+    self
+      .camera
+      .rotate(MOVEMENT_SPEED * delta_y, MOVEMENT_SPEED * delta_x);
+  }
+
   fn update(&mut self, delta: Duration) {
     const CUBE_ROTATION_SPEED: f32 = 100.0;
     const CAMERA_MOVEMENT_SPEED: f32 = 10.0;
@@ -552,7 +607,9 @@ impl<'a> App<'a> {
 
     let PhysicalSize { width, height } = self.size();
     self.transform = mat4::perspective(width as f32, height as f32, FOV, Z_NEAR, Z_FAR)
-      * self.camera.world_transform()
+      * self
+        .camera
+        .world_transform(self.keys_down.contains(&KeyCode::KeyC))
       * mat4::translate(CUBE_TRANSLATE)
       * mat4::rotate({
         let a = (X_AXIS + Y_AXIS + Z_AXIS).norm();
