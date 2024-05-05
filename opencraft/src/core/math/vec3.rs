@@ -1,5 +1,5 @@
 use crate::core::math::angle::Angle;
-use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
+use crate::core::math::{self, X_AXIS, Y_AXIS, Z_AXIS};
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(
@@ -29,7 +29,7 @@ impl Vec3 {
   }
 
   pub fn is_norm(self) -> bool {
-    (self.len() - 1.0).abs() < (10.0 * f32::EPSILON)
+    math::nearly_eq_tolerance(self.len(), 1.0, 2.0)
   }
 
   pub fn dot(lhs: Self, rhs: Self) -> f32 {
