@@ -1,6 +1,7 @@
 use crate::core::math::clamp;
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::f32::consts::PI;
+use std::fmt::Debug;
 
 fn degrees_to_radians(degrees: f32) -> f32 {
   degrees * (PI / 180.0)
@@ -8,6 +9,8 @@ fn degrees_to_radians(degrees: f32) -> f32 {
 
 pub trait Angle:
   Copy
+  + Default
+  + Debug
   + Into<Radians>
   + std::ops::Neg<Output = Self>
   + std::ops::Add<Output = Self>
@@ -32,7 +35,9 @@ pub trait Angle:
   }
 }
 
-#[derive(Clone, Copy, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign)]
+#[derive(
+  Clone, Copy, Default, Debug, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
+)]
 pub struct Degrees(f32);
 
 impl Degrees {
@@ -51,7 +56,9 @@ impl Degrees {
 
 impl Angle for Degrees {}
 
-#[derive(Clone, Copy, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign)]
+#[derive(
+  Clone, Copy, Default, Debug, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
+)]
 pub struct Radians(f32);
 
 impl Radians {

@@ -9,7 +9,7 @@ use std::ops::{Index, IndexMut, Mul};
 type Column = [f32; 4];
 
 #[repr(C)]
-#[derive(Clone, Copy, Default, NoUninit)]
+#[derive(Clone, Copy, Default, Debug, NoUninit)]
 pub struct Mat4x4 {
   values: [Column; 4],
 }

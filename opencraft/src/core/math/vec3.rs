@@ -3,7 +3,7 @@ use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(
-  Clone, Copy, Default, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
+  Clone, Copy, Default, Debug, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
 )]
 pub struct Vec3 {
   x: f32,

@@ -1,6 +1,6 @@
 use crate::core::math::vec3::Vec3;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Rotor3 {
   scalar: f32,
   xy: f32,
