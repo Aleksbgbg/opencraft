@@ -17,14 +17,16 @@ impl Rotor3 {
       to.len(),
     );
 
+    assert!(
+      from != -to,
+      "180° rotation is not well defined (from = {:?}, to = {:?})",
+      from,
+      to
+    );
+
     let halfway = (from + to).norm();
     let dot = Vec3::dot(halfway, from);
     let wedge = Vec3::wedge(halfway, from);
-
-    assert!(
-      !dot.is_nan(),
-      "from == -to: no halfway vector, needs separate implementation"
-    );
 
     Self {
       scalar: dot,
