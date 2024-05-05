@@ -11,6 +11,15 @@ pub struct Vec3 {
   z: f32,
 }
 
+impl Eq for Vec3 {}
+impl PartialEq for Vec3 {
+  fn eq(&self, other: &Self) -> bool {
+    math::nearly_eq(self.x, other.x)
+      && math::nearly_eq(self.y, other.y)
+      && math::nearly_eq(self.z, other.z)
+  }
+}
+
 impl Vec3 {
   pub const fn new(x: f32, y: f32, z: f32) -> Self {
     Self { x, y, z }
@@ -38,14 +47,18 @@ impl Vec3 {
 
   pub fn cross(lhs: Self, rhs: Self) -> Self {
     Self::new(
-      (lhs.x() * rhs.y()) - (lhs.y() * rhs.x()),
       (lhs.y() * rhs.z()) - (lhs.z() * rhs.y()),
       (lhs.z() * rhs.x()) - (lhs.x() * rhs.z()),
+      (lhs.x() * rhs.y()) - (lhs.y() * rhs.x()),
     )
   }
 
   pub fn wedge(lhs: Self, rhs: Self) -> Self {
-    Self::cross(lhs, rhs)
+    Self::new(
+      (lhs.x() * rhs.y()) - (lhs.y() * rhs.x()),
+      (lhs.y() * rhs.z()) - (lhs.z() * rhs.y()),
+      (lhs.z() * rhs.x()) - (lhs.x() * rhs.z()),
+    )
   }
 
   pub fn len(self) -> f32 {
@@ -103,5 +116,40 @@ impl std::ops::Div<Vec3> for f32 {
 
   fn div(self, rhs: Vec3) -> Self::Output {
     rhs / self
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::core::math::{QUARTER_ROTATION, X_AXIS, Y_AXIS, Z_AXIS};
+
+  #[test]
+  fn rotate_x_on_y() {
+    assert_eq!(-Z_AXIS, X_AXIS.angle_axis_rotate(QUARTER_ROTATION, Y_AXIS));
+  }
+
+  #[test]
+  fn rotate_x_on_z() {
+    assert_eq!(Y_AXIS, X_AXIS.angle_axis_rotate(QUARTER_ROTATION, Z_AXIS));
+  }
+
+  #[test]
+  fn rotate_y_on_x() {
+    assert_eq!(Z_AXIS, Y_AXIS.angle_axis_rotate(QUARTER_ROTATION, X_AXIS));
+  }
+
+  #[test]
+  fn rotate_y_on_z() {
+    assert_eq!(-X_AXIS, Y_AXIS.angle_axis_rotate(QUARTER_ROTATION, Z_AXIS));
+  }
+
+  #[test]
+  fn rotate_z_on_x() {
+    assert_eq!(-Y_AXIS, Z_AXIS.angle_axis_rotate(QUARTER_ROTATION, X_AXIS));
+  }
+
+  #[test]
+  fn rotate_z_on_y() {
+    assert_eq!(X_AXIS, Z_AXIS.angle_axis_rotate(QUARTER_ROTATION, Y_AXIS));
   }
 }
