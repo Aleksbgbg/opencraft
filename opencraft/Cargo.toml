@@ -11,3 +11,6 @@ env_logger = { version = "0.11.3", default-features = false, features = ["auto-c
 pollster = { version = "0.3.0", default-features = false }
 wgpu = { version = "0.19.3", default-features = false, features = ["wgsl"] }
 winit = { version = "0.29.15", default-features = false, features = ["rwh_06", "x11"] }
+
+[build-dependencies]
+omnicopy_to_output = { version = "0.1.1", default-features = false }
