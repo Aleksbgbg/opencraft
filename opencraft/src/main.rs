@@ -45,7 +45,7 @@ async fn start() -> Result<()> {
   let window = WindowBuilder::new()
     .with_title("Opencraft")
     .build(&event_loop)?;
-  window.set_cursor_grab(CursorGrabMode::Confined)?;
+  let _ = window.set_cursor_grab(CursorGrabMode::Confined);
   window.set_cursor_visible(false);
 
   let mut app = App::new(&window).await?;
