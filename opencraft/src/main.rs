@@ -10,22 +10,26 @@ use crate::core::math::vec3::Vec3;
 use crate::core::math::{FULL_ROTATION, HALF_ROTATION, QUARTER_ROTATION, X_AXIS, Y_AXIS, Z_AXIS};
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
+use image::io::Reader;
+use image::GenericImageView;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
   include_wgsl, vertex_attr_array, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry,
-  BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferAddress,
-  BufferBindingType, BufferUsages, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor,
-  CompareFunction, DepthBiasState, DepthStencilState, Device, Extent3d, Face, Features,
-  FragmentState, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState,
-  Operations, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState,
-  PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-  RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-  ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration, TextureDescriptor,
-  TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
-  VertexBufferLayout, VertexState, VertexStepMode,
+  BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
+  Buffer, BufferAddress, BufferBindingType, BufferUsages, Color, ColorTargetState, ColorWrites,
+  CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Device, Extent3d,
+  Face, Features, FragmentState, FrontFace, ImageCopyTexture, ImageDataLayout, Instance,
+  InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, Origin3d,
+  PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology, Queue,
+  RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+  RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, SamplerBindingType,
+  SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration,
+  TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
+  TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexBufferLayout,
+  VertexState, VertexStepMode,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent};
@@ -121,163 +125,196 @@ const TOP: f32 = CUBE_HALF;
 const LEFT: f32 = -CUBE_HALF;
 const RIGHT: f32 = CUBE_HALF;
 
+const TEX_WIDTH: f32 = 64.0;
+const TEX_HEIGHT: f32 = 48.0;
+
+const TEX_FRONT_LEFT: f32 = 16.0 / TEX_WIDTH;
+const TEX_FRONT_RIGHT: f32 = 32.0 / TEX_WIDTH;
+const TEX_FRONT_TOP: f32 = 32.0 / TEX_HEIGHT;
+const TEX_FRONT_BOTTOM: f32 = 48.0 / TEX_HEIGHT;
+
+const TEX_BACK_LEFT: f32 = 16.0 / TEX_WIDTH;
+const TEX_BACK_RIGHT: f32 = 32.0 / TEX_WIDTH;
+const TEX_BACK_TOP: f32 = 0.0 / TEX_HEIGHT;
+const TEX_BACK_BOTTOM: f32 = 16.0 / TEX_HEIGHT;
+
+const TEX_TOP_LEFT: f32 = 16.0 / TEX_WIDTH;
+const TEX_TOP_RIGHT: f32 = 32.0 / TEX_WIDTH;
+const TEX_TOP_TOP: f32 = 16.0 / TEX_HEIGHT;
+const TEX_TOP_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
+
+const TEX_BOTTOM_LEFT: f32 = 48.0 / TEX_WIDTH;
+const TEX_BOTTOM_RIGHT: f32 = 64.0 / TEX_WIDTH;
+const TEX_BOTTOM_TOP: f32 = 16.0 / TEX_HEIGHT;
+const TEX_BOTTOM_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
+
+const TEX_LEFT_LEFT: f32 = 0.0 / TEX_WIDTH;
+const TEX_LEFT_RIGHT: f32 = 16.0 / TEX_WIDTH;
+const TEX_LEFT_TOP: f32 = 16.0 / TEX_HEIGHT;
+const TEX_LEFT_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
+
+const TEX_RIGHT_LEFT: f32 = 32.0 / TEX_WIDTH;
+const TEX_RIGHT_RIGHT: f32 = 48.0 / TEX_WIDTH;
+const TEX_RIGHT_TOP: f32 = 16.0 / TEX_HEIGHT;
+const TEX_RIGHT_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
+
 #[repr(C)]
 #[derive(Clone, Copy, NoUninit)]
 struct Vertex {
   position: [f32; 3],
-  color: [f32; 3],
+  texture_coordinate: [f32; 2],
 }
 
 const VERTICES: &[Vertex] = &[
   // Front face
   Vertex {
     position: [LEFT, TOP, FRONT],
-    color: [0.0, 1.0, 1.0],
+    texture_coordinate: [TEX_FRONT_LEFT, TEX_FRONT_TOP],
   },
   Vertex {
     position: [LEFT, BOTTOM, FRONT],
-    color: [0.0, 0.0, 1.0],
+    texture_coordinate: [TEX_FRONT_LEFT, TEX_FRONT_BOTTOM],
   },
   Vertex {
     position: [RIGHT, TOP, FRONT],
-    color: [1.0, 1.0, 1.0],
+    texture_coordinate: [TEX_FRONT_RIGHT, TEX_FRONT_TOP],
   },
   Vertex {
     position: [RIGHT, TOP, FRONT],
-    color: [1.0, 1.0, 1.0],
+    texture_coordinate: [TEX_FRONT_RIGHT, TEX_FRONT_TOP],
   },
   Vertex {
     position: [LEFT, BOTTOM, FRONT],
-    color: [0.0, 0.0, 1.0],
+    texture_coordinate: [TEX_FRONT_LEFT, TEX_FRONT_BOTTOM],
   },
   Vertex {
     position: [RIGHT, BOTTOM, FRONT],
-    color: [1.0, 0.0, 1.0],
+    texture_coordinate: [TEX_FRONT_RIGHT, TEX_FRONT_BOTTOM],
   },
   // Back face
   Vertex {
     position: [LEFT, TOP, BACK],
-    color: [0.0, 1.0, 0.0],
+    texture_coordinate: [TEX_BACK_LEFT, TEX_BACK_BOTTOM],
   },
   Vertex {
     position: [RIGHT, TOP, BACK],
-    color: [1.0, 1.0, 0.0],
+    texture_coordinate: [TEX_BACK_RIGHT, TEX_BACK_BOTTOM],
   },
   Vertex {
     position: [LEFT, BOTTOM, BACK],
-    color: [0.0, 0.0, 0.0],
+    texture_coordinate: [TEX_BACK_LEFT, TEX_BACK_TOP],
   },
   Vertex {
     position: [RIGHT, BOTTOM, BACK],
-    color: [1.0, 0.0, 0.0],
+    texture_coordinate: [TEX_BACK_RIGHT, TEX_BACK_TOP],
   },
   Vertex {
     position: [LEFT, BOTTOM, BACK],
-    color: [0.0, 0.0, 0.0],
+    texture_coordinate: [TEX_BACK_LEFT, TEX_BACK_TOP],
   },
   Vertex {
     position: [RIGHT, TOP, BACK],
-    color: [1.0, 1.0, 0.0],
+    texture_coordinate: [TEX_BACK_RIGHT, TEX_BACK_BOTTOM],
   },
   // Top face
   Vertex {
     position: [LEFT, TOP, BACK],
-    color: [0.0, 1.0, 0.0],
+    texture_coordinate: [TEX_TOP_LEFT, TEX_TOP_TOP],
   },
   Vertex {
     position: [LEFT, TOP, FRONT],
-    color: [0.0, 1.0, 1.0],
+    texture_coordinate: [TEX_TOP_LEFT, TEX_TOP_BOTTOM],
   },
   Vertex {
     position: [RIGHT, TOP, BACK],
-    color: [1.0, 1.0, 0.0],
+    texture_coordinate: [TEX_TOP_RIGHT, TEX_TOP_TOP],
   },
   Vertex {
     position: [RIGHT, TOP, BACK],
-    color: [1.0, 1.0, 0.0],
+    texture_coordinate: [TEX_TOP_RIGHT, TEX_TOP_TOP],
   },
   Vertex {
     position: [LEFT, TOP, FRONT],
-    color: [0.0, 1.0, 1.0],
+    texture_coordinate: [TEX_TOP_LEFT, TEX_TOP_BOTTOM],
   },
   Vertex {
     position: [RIGHT, TOP, FRONT],
-    color: [1.0, 1.0, 1.0],
+    texture_coordinate: [TEX_TOP_RIGHT, TEX_TOP_BOTTOM],
   },
   // Bottom face
   Vertex {
     position: [RIGHT, BOTTOM, FRONT],
-    color: [1.0, 0.0, 1.0],
+    texture_coordinate: [TEX_BOTTOM_RIGHT, TEX_BOTTOM_TOP],
   },
   Vertex {
     position: [LEFT, BOTTOM, FRONT],
-    color: [0.0, 0.0, 1.0],
+    texture_coordinate: [TEX_BOTTOM_LEFT, TEX_BOTTOM_TOP],
   },
   Vertex {
     position: [LEFT, BOTTOM, BACK],
-    color: [0.0, 0.0, 0.0],
+    texture_coordinate: [TEX_BOTTOM_LEFT, TEX_BOTTOM_BOTTOM],
   },
   Vertex {
     position: [LEFT, BOTTOM, BACK],
-    color: [0.0, 0.0, 0.0],
+    texture_coordinate: [TEX_BOTTOM_LEFT, TEX_BOTTOM_BOTTOM],
   },
   Vertex {
     position: [RIGHT, BOTTOM, BACK],
-    color: [1.0, 0.0, 0.0],
+    texture_coordinate: [TEX_BOTTOM_RIGHT, TEX_BOTTOM_BOTTOM],
   },
   Vertex {
     position: [RIGHT, BOTTOM, FRONT],
-    color: [1.0, 0.0, 1.0],
+    texture_coordinate: [TEX_BOTTOM_RIGHT, TEX_BOTTOM_TOP],
   },
   // Left face
   Vertex {
     position: [LEFT, TOP, BACK],
-    color: [0.0, 1.0, 0.0],
+    texture_coordinate: [TEX_LEFT_RIGHT, TEX_LEFT_TOP],
   },
   Vertex {
     position: [LEFT, BOTTOM, BACK],
-    color: [0.0, 0.0, 0.0],
+    texture_coordinate: [TEX_LEFT_LEFT, TEX_LEFT_TOP],
   },
   Vertex {
     position: [LEFT, TOP, FRONT],
-    color: [0.0, 1.0, 1.0],
+    texture_coordinate: [TEX_LEFT_RIGHT, TEX_LEFT_BOTTOM],
   },
   Vertex {
     position: [LEFT, TOP, FRONT],
-    color: [0.0, 1.0, 1.0],
+    texture_coordinate: [TEX_LEFT_RIGHT, TEX_LEFT_BOTTOM],
   },
   Vertex {
     position: [LEFT, BOTTOM, BACK],
-    color: [0.0, 0.0, 0.0],
+    texture_coordinate: [TEX_LEFT_LEFT, TEX_LEFT_TOP],
   },
   Vertex {
     position: [LEFT, BOTTOM, FRONT],
-    color: [0.0, 0.0, 1.0],
+    texture_coordinate: [TEX_LEFT_LEFT, TEX_LEFT_BOTTOM],
   },
   // Right face
   Vertex {
     position: [RIGHT, TOP, BACK],
-    color: [1.0, 1.0, 0.0],
+    texture_coordinate: [TEX_RIGHT_LEFT, TEX_RIGHT_TOP],
   },
   Vertex {
     position: [RIGHT, TOP, FRONT],
-    color: [1.0, 1.0, 1.0],
+    texture_coordinate: [TEX_RIGHT_LEFT, TEX_RIGHT_BOTTOM],
   },
   Vertex {
     position: [RIGHT, BOTTOM, BACK],
-    color: [1.0, 0.0, 0.0],
+    texture_coordinate: [TEX_RIGHT_RIGHT, TEX_RIGHT_TOP],
   },
   Vertex {
     position: [RIGHT, BOTTOM, BACK],
-    color: [1.0, 0.0, 0.0],
+    texture_coordinate: [TEX_RIGHT_RIGHT, TEX_RIGHT_TOP],
   },
   Vertex {
     position: [RIGHT, TOP, FRONT],
-    color: [1.0, 1.0, 1.0],
+    texture_coordinate: [TEX_RIGHT_LEFT, TEX_RIGHT_BOTTOM],
   },
   Vertex {
     position: [RIGHT, BOTTOM, FRONT],
-    color: [1.0, 0.0, 1.0],
+    texture_coordinate: [TEX_RIGHT_RIGHT, TEX_RIGHT_BOTTOM],
   },
 ];
 
@@ -351,6 +388,7 @@ struct App<'a> {
   transform_bind_group: BindGroup,
   pipeline: RenderPipeline,
   vertex_buffer: Buffer,
+  grass_bind_group: BindGroup,
 }
 
 const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
@@ -421,6 +459,80 @@ impl<'a> App<'a> {
 
     surface.configure(&device, &config);
 
+    let grass_image = Reader::open("assets/textures/grass.png")?.decode()?;
+    let grass_rgba = grass_image.to_rgba8();
+    let (grass_width, grass_height) = grass_image.dimensions();
+
+    let grass_size = Extent3d {
+      width: grass_width,
+      height: grass_height,
+      depth_or_array_layers: 1,
+    };
+    let grass_texture = device.create_texture(&TextureDescriptor {
+      label: Some("Grass Texture"),
+      size: grass_size,
+      mip_level_count: 1,
+      sample_count: 1,
+      dimension: TextureDimension::D2,
+      format: TextureFormat::Rgba8UnormSrgb,
+      usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+      view_formats: &[],
+    });
+
+    queue.write_texture(
+      ImageCopyTexture {
+        texture: &grass_texture,
+        mip_level: 0,
+        origin: Origin3d::ZERO,
+        aspect: TextureAspect::All,
+      },
+      &grass_rgba,
+      ImageDataLayout {
+        offset: 0,
+        bytes_per_row: Some(4 * grass_size.width),
+        rows_per_image: Some(grass_size.height),
+      },
+      grass_size,
+    );
+
+    let grass_texture_view = grass_texture.create_view(&TextureViewDescriptor::default());
+    let grass_sampler = device.create_sampler(&SamplerDescriptor::default());
+    let grass_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+      label: Some("Grass Bind Group Layout"),
+      entries: &[
+        BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Texture {
+            sample_type: TextureSampleType::Float { filterable: true },
+            view_dimension: TextureViewDimension::D2,
+            multisampled: false,
+          },
+          count: None,
+        },
+        BindGroupLayoutEntry {
+          binding: 1,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Sampler(SamplerBindingType::Filtering),
+          count: None,
+        },
+      ],
+    });
+    let grass_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Grass Bind Group"),
+      layout: &grass_bind_group_layout,
+      entries: &[
+        BindGroupEntry {
+          binding: 0,
+          resource: BindingResource::TextureView(&grass_texture_view),
+        },
+        BindGroupEntry {
+          binding: 1,
+          resource: BindingResource::Sampler(&grass_sampler),
+        },
+      ],
+    });
+
     let depth_view = create_depth_texture(&device, &config);
 
     let transform = Mat4x4::default();
@@ -454,7 +566,7 @@ impl<'a> App<'a> {
     let shader = device.create_shader_module(include_wgsl!("shaders/simple.wgsl"));
     let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Render Pipeline Layout"),
-      bind_group_layouts: &[&transform_buffer_layout],
+      bind_group_layouts: &[&transform_buffer_layout, &grass_bind_group_layout],
       push_constant_ranges: &[],
     });
     let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -522,6 +634,7 @@ impl<'a> App<'a> {
       transform_bind_group,
       pipeline,
       vertex_buffer,
+      grass_bind_group,
     })
   }
 
@@ -648,6 +761,7 @@ impl<'a> App<'a> {
       });
       render_pass.set_pipeline(&self.pipeline);
       render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
+      render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
       render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
       render_pass.draw(0..VERTICES.len() as u32, 0..1);
     }
