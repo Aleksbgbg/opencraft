@@ -563,7 +563,7 @@ impl<'a> App<'a> {
       }],
     });
 
-    let shader = device.create_shader_module(include_wgsl!("shaders/simple.wgsl"));
+    let shader = device.create_shader_module(include_wgsl!("shaders/cube.wgsl"));
     let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Render Pipeline Layout"),
       bind_group_layouts: &[&transform_buffer_layout, &grass_bind_group_layout],
