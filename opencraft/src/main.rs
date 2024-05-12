@@ -340,7 +340,6 @@ struct App<'a> {
 
   camera: Camera,
   keys_down: HashSet<KeyCode>,
-  rotation: Degrees,
   transform: Mat4x4,
 
   surface: Surface<'a>,
@@ -513,7 +512,6 @@ impl<'a> App<'a> {
       last: Instant::now(),
       camera: Camera::new(),
       keys_down: HashSet::new(),
-      rotation: Degrees::new(0.0),
       transform,
       surface,
       device,
@@ -582,13 +580,9 @@ impl<'a> App<'a> {
   }
 
   fn update(&mut self, delta: Duration) {
-    const CUBE_ROTATION_SPEED: f32 = 100.0;
     const CAMERA_MOVEMENT_SPEED: f32 = 10.0;
 
     let delta_secs = delta.as_secs_f32();
-
-    self.rotation += Degrees::new(CUBE_ROTATION_SPEED * delta_secs);
-    self.rotation = self.rotation.clamp();
 
     let mut camera_movement = Vec3::default();
     for key in &self.keys_down {
@@ -611,13 +605,7 @@ impl<'a> App<'a> {
       * self
         .camera
         .world_transform(self.keys_down.contains(&KeyCode::KeyC))
-      * mat4::translate(CUBE_TRANSLATE)
-      * mat4::rotate({
-        let a = (X_AXIS + Y_AXIS + Z_AXIS).norm();
-        let b = a.angle_axis_rotate(self.rotation, a.perpendicular());
-
-        Rotor3::new(a, b)
-      })
+      * mat4::translate(CUBE_TRANSLATE);
   }
 
   fn render(&self) -> Result<()> {
