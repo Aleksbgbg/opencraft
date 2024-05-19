@@ -3,10 +3,6 @@ stages:
   - lint
   - test
 
-default:
-  tags:
-    - linux
-
 build:
   stage: build
   image: rust:latest
