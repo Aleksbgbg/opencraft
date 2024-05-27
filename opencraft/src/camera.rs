@@ -20,6 +20,11 @@ fn rotor(rotation_x: Radians, rotation_y: Radians) -> Rotor3 {
   rotor_x * rotor_y
 }
 
+pub enum Direction {
+  Forward,
+  Backward,
+}
+
 #[derive(Default)]
 pub struct Camera {
   position: Vec3,
@@ -45,14 +50,18 @@ impl Camera {
   }
 
   /// Returns a transformation to be applied on the world to simulate the
-  /// position of the camera. The world transformation will be the inverse of
+  /// position of the camera.
+  ///
+  /// The world transformation will be the inverse of
   /// all movements applied on the camera, as (for example) moving the camera
   /// backwards can be simulated by moving the entire world forwards.
-  pub fn world_transform(&self, reverse: bool) -> Mat4x4 {
-    let rotation_y = if reverse {
-      self.rotation_y + HALF_ROTATION
-    } else {
-      self.rotation_y
+  ///
+  /// The camera can be flipped backwards by passing in [`Direction::Backward`]
+  /// for the `facing` parameter.
+  pub fn world_transform(&self, facing: Direction) -> Mat4x4 {
+    let rotation_y = match facing {
+      Direction::Forward => self.rotation_y,
+      Direction::Backward => self.rotation_y + HALF_ROTATION,
     };
     mat4::rotate(-rotor(self.rotation_x, rotation_y)) * mat4::translate(-self.position)
   }

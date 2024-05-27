@@ -4,7 +4,7 @@
 mod camera;
 mod core;
 
-use crate::camera::Camera;
+use crate::camera::{Camera, Direction};
 use crate::core::math::angle::{Degrees, Radians};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
@@ -664,7 +664,11 @@ impl<'a> App<'a> {
     self.transform = mat4::perspective(width as f32, height as f32, FOV, Z_NEAR, Z_FAR)
       * self
         .camera
-        .world_transform(self.keys_down.contains(&KeyCode::KeyC))
+        .world_transform(if self.keys_down.contains(&KeyCode::KeyC) {
+          Direction::Backward
+        } else {
+          Direction::Forward
+        })
       * mat4::translate(CUBE_TRANSLATE);
   }
 
