@@ -42,7 +42,7 @@ impl Angle {
     self.radians.tan()
   }
 
-  pub fn clamp(self) -> Self {
+  pub fn wrap(self) -> Self {
     Self::radians(self.radians.rem_euclid(FULL_ROTATION.radians))
   }
 }

@@ -45,8 +45,8 @@ impl Camera {
     self.rotation_x += x;
     self.rotation_y += y;
 
-    self.rotation_x = self.rotation_x.clamp();
-    self.rotation_y = self.rotation_y.clamp();
+    self.rotation_x = self.rotation_x.wrap();
+    self.rotation_y = self.rotation_y.wrap();
   }
 
   /// Returns a transformation to be applied on the world to simulate the
