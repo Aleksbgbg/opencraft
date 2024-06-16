@@ -1,4 +1,4 @@
-use crate::core::math::{self, clamp, FULL_ROTATION};
+use crate::core::math::{self, FULL_ROTATION};
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::f32::consts::PI;
 use std::fmt::Debug;
@@ -43,6 +43,6 @@ impl Angle {
   }
 
   pub fn clamp(self) -> Self {
-    Self::radians(clamp::end(self.radians, ..=FULL_ROTATION.radians))
+    Self::radians(self.radians.rem_euclid(FULL_ROTATION.radians))
   }
 }
