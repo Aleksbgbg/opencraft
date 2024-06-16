@@ -46,7 +46,7 @@ impl Camera {
     self.pitch += pitch;
 
     self.yaw = self.yaw.wrap();
-    self.pitch = self.pitch.wrap();
+    self.pitch = self.pitch.clamp(QUARTER_ROTATION);
   }
 
   /// Returns a transformation to be applied on the world to simulate the

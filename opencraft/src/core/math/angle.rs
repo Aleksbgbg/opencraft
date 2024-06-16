@@ -12,7 +12,20 @@ fn degrees_to_radians(degrees: f32) -> f32 {
 }
 
 #[derive(
-  Clone, Copy, Default, Debug, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
+  Clone,
+  Copy,
+  PartialOrd,
+  Default,
+  Debug,
+  Neg,
+  Add,
+  Sub,
+  Mul,
+  Div,
+  AddAssign,
+  SubAssign,
+  MulAssign,
+  DivAssign,
 )]
 pub struct Angle {
   radians: f32,
@@ -44,6 +57,16 @@ impl Angle {
 
   pub fn tan(self) -> f32 {
     self.radians.tan()
+  }
+
+  pub fn clamp(self, value: Angle) -> Self {
+    if self > value {
+      value
+    } else if self < -value {
+      -value
+    } else {
+      self
+    }
   }
 
   pub fn wrap(self) -> Self {
