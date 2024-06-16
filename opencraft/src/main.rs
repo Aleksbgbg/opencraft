@@ -635,11 +635,9 @@ impl<'a> App<'a> {
     let delta_x = x / width;
     let delta_y = y / height;
 
-    // Swap axes as we want the mouse movement across the screen (x) to rotate
-    // across the Y axis and vice-versa.
     self
       .camera
-      .rotate(MOVEMENT_SPEED * delta_y, MOVEMENT_SPEED * delta_x);
+      .rotate(MOVEMENT_SPEED * delta_x, MOVEMENT_SPEED * delta_y);
   }
 
   fn update(&mut self, delta: Duration) {
