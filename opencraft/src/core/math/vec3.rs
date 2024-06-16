@@ -121,7 +121,8 @@ impl std::ops::Div<Vec3> for f32 {
 
 #[cfg(test)]
 mod tests {
-  use crate::core::math::{QUARTER_ROTATION, X_AXIS, Y_AXIS, Z_AXIS};
+  use crate::core::math::angle::QUARTER_ROTATION;
+  use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 
   #[test]
   fn rotate_x_on_y() {

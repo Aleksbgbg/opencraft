@@ -1,7 +1,11 @@
-use crate::core::math::{self, FULL_ROTATION};
+use crate::core::math::{self};
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::f32::consts::PI;
 use std::fmt::Debug;
+
+pub const QUARTER_ROTATION: Angle = Angle::radians(PI / 2.0);
+pub const HALF_ROTATION: Angle = Angle::radians(PI);
+pub const FULL_ROTATION: Angle = Angle::radians(2.0 * PI);
 
 fn degrees_to_radians(degrees: f32) -> f32 {
   degrees * (PI / 180.0)

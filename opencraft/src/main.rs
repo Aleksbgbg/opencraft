@@ -5,10 +5,10 @@ mod camera;
 mod core;
 
 use crate::camera::{Camera, Direction};
-use crate::core::math::angle::Angle;
+use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
-use crate::core::math::{FULL_ROTATION, X_AXIS, Z_AXIS};
+use crate::core::math::{X_AXIS, Z_AXIS};
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
 use image::io::Reader;

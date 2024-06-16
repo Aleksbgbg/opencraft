@@ -1,8 +1,8 @@
-use crate::core::math::angle::Angle;
+use crate::core::math::angle::{Angle, HALF_ROTATION, QUARTER_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
-use crate::core::math::{HALF_ROTATION, QUARTER_ROTATION, X_AXIS, Y_AXIS, Z_AXIS};
+use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 
 fn rotor(rotation_x: Angle, rotation_y: Angle) -> Rotor3 {
   let rotor_x = {
