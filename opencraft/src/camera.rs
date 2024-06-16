@@ -1,10 +1,10 @@
-use crate::core::math::angle::Radians;
+use crate::core::math::angle::Angle;
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{HALF_ROTATION, QUARTER_ROTATION, X_AXIS, Y_AXIS, Z_AXIS};
 
-fn rotor(rotation_x: Radians, rotation_y: Radians) -> Rotor3 {
+fn rotor(rotation_x: Angle, rotation_y: Angle) -> Rotor3 {
   let rotor_x = {
     let orientation_x = Z_AXIS.angle_axis_rotate(rotation_x, X_AXIS);
     Rotor3::new(Z_AXIS, orientation_x)
@@ -28,8 +28,8 @@ pub enum Direction {
 #[derive(Default)]
 pub struct Camera {
   position: Vec3,
-  rotation_x: Radians,
-  rotation_y: Radians,
+  rotation_x: Angle,
+  rotation_y: Angle,
 }
 
 impl Camera {
@@ -41,9 +41,9 @@ impl Camera {
     self.position += rotor(self.rotation_x, self.rotation_y).rotate(offset);
   }
 
-  pub fn rotate<X: Into<Radians>, Y: Into<Radians>>(&mut self, x: X, y: Y) {
-    self.rotation_x += x.into();
-    self.rotation_y += y.into();
+  pub fn rotate(&mut self, x: Angle, y: Angle) {
+    self.rotation_x += x;
+    self.rotation_y += y;
 
     self.rotation_x = self.rotation_x.clamp();
     self.rotation_y = self.rotation_y.clamp();

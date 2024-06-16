@@ -91,7 +91,7 @@ impl Vec3 {
     Self::cross(most_orthogonal_axis, self)
   }
 
-  pub fn angle_axis_rotate<A: Angle>(self, angle: A, axis: Vec3) -> Self {
+  pub fn angle_axis_rotate(self, angle: Angle, axis: Vec3) -> Self {
     let proj = axis * (Self::dot(self, axis) / Self::dot(axis, axis));
     let rej = self - proj;
     let rej_len = rej.len();

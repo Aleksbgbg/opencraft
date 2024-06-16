@@ -7,121 +7,42 @@ fn degrees_to_radians(degrees: f32) -> f32 {
   degrees * (PI / 180.0)
 }
 
-pub trait Angle:
-  Copy
-  + PartialEq
-  + Eq
-  + PartialOrd
-  + Default
-  + Debug
-  + Into<Radians>
-  + std::ops::Neg<Output = Self>
-  + std::ops::Add<Output = Self>
-  + std::ops::Sub<Output = Self>
-  + std::ops::Mul<f32, Output = Self>
-  + std::ops::Div<f32, Output = Self>
-  + std::ops::AddAssign
-  + std::ops::SubAssign
-  + std::ops::MulAssign<f32>
-  + std::ops::DivAssign<f32>
-{
-  fn sin(self) -> f32 {
-    self.into().value().sin()
-  }
-
-  fn cos(self) -> f32 {
-    self.into().value().cos()
-  }
-
-  fn tan(self) -> f32 {
-    self.into().value().tan()
-  }
-}
-
 #[derive(
-  Clone,
-  Copy,
-  PartialOrd,
-  Default,
-  Debug,
-  Neg,
-  Add,
-  Sub,
-  Mul,
-  Div,
-  AddAssign,
-  SubAssign,
-  MulAssign,
-  DivAssign,
+  Clone, Copy, Default, Debug, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
 )]
-pub struct Degrees(f32);
+pub struct Angle {
+  radians: f32,
+}
 
-impl Eq for Degrees {}
-impl PartialEq for Degrees {
+impl Eq for Angle {}
+impl PartialEq for Angle {
   fn eq(&self, other: &Self) -> bool {
-    math::nearly_eq(self.value(), other.value())
+    math::nearly_eq(self.radians, other.radians)
   }
 }
 
-impl Degrees {
-  pub const fn new(value: f32) -> Self {
-    Self(value)
+impl Angle {
+  pub const fn radians(radians: f32) -> Self {
+    Self { radians }
   }
 
-  const fn value(self) -> f32 {
-    self.0
+  pub fn degrees(degrees: f32) -> Self {
+    Self::radians(degrees_to_radians(degrees))
+  }
+
+  pub fn sin(self) -> f32 {
+    self.radians.sin()
+  }
+
+  pub fn cos(self) -> f32 {
+    self.radians.cos()
+  }
+
+  pub fn tan(self) -> f32 {
+    self.radians.tan()
   }
 
   pub fn clamp(self) -> Self {
-    Self::new(clamp::end(self.value(), ..=360.0))
-  }
-}
-
-impl Angle for Degrees {}
-
-#[derive(
-  Clone,
-  Copy,
-  PartialOrd,
-  Default,
-  Debug,
-  Neg,
-  Add,
-  Sub,
-  Mul,
-  Div,
-  AddAssign,
-  SubAssign,
-  MulAssign,
-  DivAssign,
-)]
-pub struct Radians(f32);
-
-impl Eq for Radians {}
-impl PartialEq for Radians {
-  fn eq(&self, other: &Self) -> bool {
-    math::nearly_eq(self.value(), other.value())
-  }
-}
-
-impl Radians {
-  pub const fn new(value: f32) -> Self {
-    Self(value)
-  }
-
-  const fn value(self) -> f32 {
-    self.0
-  }
-
-  pub fn clamp(self) -> Self {
-    Self::new(clamp::end(self.value(), ..=FULL_ROTATION.value()))
-  }
-}
-
-impl Angle for Radians {}
-
-impl From<Degrees> for Radians {
-  fn from(deg: Degrees) -> Self {
-    Self::new(degrees_to_radians(deg.value()))
+    Self::radians(clamp::end(self.radians, ..=FULL_ROTATION.radians))
   }
 }

@@ -57,7 +57,7 @@ impl Mul<Mat4x4> for Mat4x4 {
   }
 }
 
-pub fn perspective<A: Angle>(width: f32, height: f32, fov: A, z_near: f32, z_far: f32) -> Mat4x4 {
+pub fn perspective(width: f32, height: f32, fov: Angle, z_near: f32, z_far: f32) -> Mat4x4 {
   let aspect_ratio = height / width;
   let fov_scale = 1.0 / (fov / 2.0).tan();
   let depth_scale = z_far / (z_far - z_near);

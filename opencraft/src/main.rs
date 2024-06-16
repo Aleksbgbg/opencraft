@@ -5,7 +5,7 @@ mod camera;
 mod core;
 
 use crate::camera::{Camera, Direction};
-use crate::core::math::angle::{Degrees, Radians};
+use crate::core::math::angle::Angle;
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{FULL_ROTATION, X_AXIS, Z_AXIS};
@@ -13,6 +13,7 @@ use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
 use image::io::Reader;
 use image::GenericImageView;
+use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use std::{iter, mem};
@@ -111,7 +112,9 @@ async fn start() -> Result<()> {
   Ok(())
 }
 
-const FOV: Degrees = Degrees::new(75.0);
+lazy_static! {
+  static ref FOV: Angle = Angle::degrees(75.0);
+}
 const Z_NEAR: f32 = 0.01;
 const Z_FAR: f32 = 1000.0;
 
@@ -624,7 +627,7 @@ impl<'a> App<'a> {
   }
 
   fn motion(&mut self, x: f32, y: f32) {
-    const MOVEMENT_SPEED: Radians = FULL_ROTATION;
+    const MOVEMENT_SPEED: Angle = FULL_ROTATION;
 
     let width = self.config.width as f32;
     let height = self.config.height as f32;
@@ -661,7 +664,7 @@ impl<'a> App<'a> {
     }
 
     let PhysicalSize { width, height } = self.size();
-    self.transform = mat4::perspective(width as f32, height as f32, FOV, Z_NEAR, Z_FAR)
+    self.transform = mat4::perspective(width as f32, height as f32, *FOV, Z_NEAR, Z_FAR)
       * self
         .camera
         .world_transform(if self.keys_down.contains(&KeyCode::KeyC) {
