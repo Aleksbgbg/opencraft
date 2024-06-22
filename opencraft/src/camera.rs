@@ -17,7 +17,7 @@ fn rotor(yaw: Angle, pitch: Angle) -> Rotor3 {
     Rotor3::new(Z_AXIS, orientation_pitch)
   };
 
-  rotor_pitch * rotor_yaw
+  rotor_yaw * rotor_pitch
 }
 
 pub enum Direction {
