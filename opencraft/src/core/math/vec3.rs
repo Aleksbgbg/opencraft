@@ -1,4 +1,3 @@
-use crate::core::math::angle::Angle;
 use crate::core::math::{self, X_AXIS, Y_AXIS, Z_AXIS};
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
@@ -53,14 +52,6 @@ impl Vec3 {
     )
   }
 
-  pub fn wedge(lhs: Self, rhs: Self) -> Self {
-    Self::new(
-      (lhs.x() * rhs.y()) - (lhs.y() * rhs.x()),
-      (lhs.y() * rhs.z()) - (lhs.z() * rhs.y()),
-      (lhs.z() * rhs.x()) - (lhs.x() * rhs.z()),
-    )
-  }
-
   pub fn len(self) -> f32 {
     self.len_sq().sqrt()
   }
@@ -90,17 +81,6 @@ impl Vec3 {
 
     Self::cross(most_orthogonal_axis, self)
   }
-
-  pub fn angle_axis_rotate(self, angle: Angle, axis: Vec3) -> Self {
-    let proj = axis * (Self::dot(self, axis) / Self::dot(axis, axis));
-    let rej = self - proj;
-    let rej_len = rej.len();
-    let orthogonal = Self::cross(axis, rej);
-    let x_1 = angle.cos() / rej_len;
-    let x_2 = angle.sin() / orthogonal.len();
-
-    proj + (rej_len * ((x_1 * rej) + (x_2 * orthogonal)))
-  }
 }
 
 impl std::ops::Mul<Vec3> for f32 {
@@ -116,41 +96,5 @@ impl std::ops::Div<Vec3> for f32 {
 
   fn div(self, rhs: Vec3) -> Self::Output {
     rhs / self
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use crate::core::math::angle::QUARTER_ROTATION;
-  use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
-
-  #[test]
-  fn rotate_x_on_y() {
-    assert_eq!(-Z_AXIS, X_AXIS.angle_axis_rotate(QUARTER_ROTATION, Y_AXIS));
-  }
-
-  #[test]
-  fn rotate_x_on_z() {
-    assert_eq!(Y_AXIS, X_AXIS.angle_axis_rotate(QUARTER_ROTATION, Z_AXIS));
-  }
-
-  #[test]
-  fn rotate_y_on_x() {
-    assert_eq!(Z_AXIS, Y_AXIS.angle_axis_rotate(QUARTER_ROTATION, X_AXIS));
-  }
-
-  #[test]
-  fn rotate_y_on_z() {
-    assert_eq!(-X_AXIS, Y_AXIS.angle_axis_rotate(QUARTER_ROTATION, Z_AXIS));
-  }
-
-  #[test]
-  fn rotate_z_on_x() {
-    assert_eq!(-Y_AXIS, Z_AXIS.angle_axis_rotate(QUARTER_ROTATION, X_AXIS));
-  }
-
-  #[test]
-  fn rotate_z_on_y() {
-    assert_eq!(X_AXIS, Z_AXIS.angle_axis_rotate(QUARTER_ROTATION, Y_AXIS));
   }
 }

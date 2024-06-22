@@ -2,20 +2,11 @@ use crate::core::math::angle::{Angle, HALF_ROTATION, QUARTER_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
-use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
+use crate::core::math::{YZ_PLANE, ZX_PLANE};
 
 fn rotor(yaw: Angle, pitch: Angle) -> Rotor3 {
-  let rotor_yaw = if yaw == HALF_ROTATION {
-    let midpoint = Z_AXIS.angle_axis_rotate(QUARTER_ROTATION, Y_AXIS);
-    Rotor3::new(Z_AXIS, midpoint) * Rotor3::new(midpoint, -Z_AXIS)
-  } else {
-    let orientation_yaw = Z_AXIS.angle_axis_rotate(yaw, Y_AXIS);
-    Rotor3::new(Z_AXIS, orientation_yaw)
-  };
-  let rotor_pitch = {
-    let orientation_pitch = Z_AXIS.angle_axis_rotate(pitch, X_AXIS);
-    Rotor3::new(Z_AXIS, orientation_pitch)
-  };
+  let rotor_yaw = Rotor3::angle_plane(yaw, ZX_PLANE);
+  let rotor_pitch = Rotor3::angle_plane(pitch, YZ_PLANE);
 
   rotor_yaw * rotor_pitch
 }

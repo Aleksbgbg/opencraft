@@ -1,3 +1,5 @@
+use crate::core::math::angle::Angle;
+use crate::core::math::bivec3::BiVec3;
 use crate::core::math::vec3::Vec3;
 use std::ops::{Mul, Neg};
 
@@ -10,7 +12,20 @@ pub struct Rotor3 {
 }
 
 impl Rotor3 {
-  pub fn new(from: Vec3, to: Vec3) -> Self {
+  pub fn angle_plane(angle: Angle, plane: BiVec3) -> Self {
+    let half = angle / 2.0;
+    let neg_sin = -half.sin();
+
+    Self {
+      scalar: half.cos(),
+      xy: neg_sin * plane.xy(),
+      yz: neg_sin * plane.yz(),
+      zx: neg_sin * plane.zx(),
+    }
+  }
+
+  #[allow(dead_code)]
+  pub fn from_to(from: Vec3, to: Vec3) -> Self {
     assert!(
       from.is_norm() && to.is_norm(),
       "input vectors must be normalized (from.len() = {}, to.len() = {})",
@@ -27,13 +42,13 @@ impl Rotor3 {
 
     let halfway = (from + to).norm();
     let dot = Vec3::dot(halfway, from);
-    let wedge = Vec3::wedge(halfway, from);
+    let wedge = BiVec3::wedge(halfway, from);
 
     Self {
       scalar: dot,
-      xy: wedge.x(),
-      yz: wedge.y(),
-      zx: wedge.z(),
+      xy: wedge.xy(),
+      yz: wedge.yz(),
+      zx: wedge.zx(),
     }
   }
 
