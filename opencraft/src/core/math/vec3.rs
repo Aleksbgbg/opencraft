@@ -1,4 +1,4 @@
-use crate::core::math::{self, X_AXIS, Y_AXIS, Z_AXIS};
+use crate::core::math;
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(
@@ -65,21 +65,6 @@ impl Vec3 {
 
     let len = self.len();
     Self::new(self.x() / len, self.y() / len, self.z() / len)
-  }
-
-  pub fn perpendicular(self) -> Self {
-    let most_orthogonal_axis = [X_AXIS, Y_AXIS, Z_AXIS]
-      .into_iter()
-      .reduce(|a, b| {
-        if Self::dot(self, a) < Self::dot(self, b) {
-          a
-        } else {
-          b
-        }
-      })
-      .unwrap();
-
-    Self::cross(most_orthogonal_axis, self)
   }
 }
 
