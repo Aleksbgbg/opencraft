@@ -50,10 +50,12 @@ impl Camera {
   /// The camera can be flipped backwards by passing in [`Direction::Backward`]
   /// for the `facing` parameter.
   pub fn world_transform(&self, facing: Direction) -> Mat4x4 {
-    let yaw = match facing {
-      Direction::Forward => self.yaw,
-      Direction::Backward => self.yaw + HALF_ROTATION,
+    let world_rotor = -rotor(self.yaw, self.pitch);
+    let world_rotor = match facing {
+      Direction::Forward => world_rotor,
+      Direction::Backward => Rotor3::angle_plane(HALF_ROTATION, ZX_PLANE) * world_rotor,
     };
-    mat4::rotate(-rotor(yaw, self.pitch)) * mat4::translate(-self.position)
+
+    mat4::rotate(world_rotor) * mat4::translate(-self.position)
   }
 }
