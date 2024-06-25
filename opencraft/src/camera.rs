@@ -28,6 +28,10 @@ impl Camera {
     Self::default()
   }
 
+  pub fn position(&self) -> Vec3 {
+    self.position
+  }
+
   pub fn translate(&mut self, offset: Vec3) {
     self.position += rotor(self.yaw, self.pitch).rotate(offset);
   }

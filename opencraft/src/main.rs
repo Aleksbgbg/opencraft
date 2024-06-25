@@ -322,12 +322,19 @@ const VERTICES: &[Vertex] = &[
   },
 ];
 
+#[repr(C)]
+#[derive(Clone, Copy, NoUninit)]
+struct SkyVertex {
+  position: [f32; 3],
+}
+
 struct App<'a> {
   last: Instant,
 
   camera: Camera,
   keys_down: HashSet<KeyCode>,
   transform: Mat4x4,
+  skybox_transform: Mat4x4,
 
   surface: Surface<'a>,
   device: Device,
@@ -339,6 +346,11 @@ struct App<'a> {
   pipeline: RenderPipeline,
   vertex_buffer: Buffer,
   grass_bind_group: BindGroup,
+
+  skybox_transform_buffer: Buffer,
+  skybox_transform_bind_group: BindGroup,
+  skybox_pipeline: RenderPipeline,
+  skybox_vertex_buffer: Buffer,
 }
 
 const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
@@ -570,11 +582,105 @@ impl<'a> App<'a> {
       usage: BufferUsages::VERTEX,
     });
 
+    let skybox_transform = Mat4x4::default();
+    let skybox_transform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Skybox Model -> Clip Space Transform Buffer"),
+      contents: bytemuck::cast_slice(&[skybox_transform]),
+      usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+    });
+    let skybox_transform_buffer_layout =
+      device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Skybox Transform Buffer Bind Group Layout"),
+        entries: &[BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::VERTEX,
+          ty: BindingType::Buffer {
+            ty: BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+          },
+          count: None,
+        }],
+      });
+    let skybox_transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Skybox Transform Buffer Bind Group"),
+      layout: &skybox_transform_buffer_layout,
+      entries: &[BindGroupEntry {
+        binding: 0,
+        resource: skybox_transform_buffer.as_entire_binding(),
+      }],
+    });
+
+    let skybox_shader = device.create_shader_module(include_wgsl!("shaders/skybox.wgsl"));
+    let skybox_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+      label: Some("Skybox Render Pipeline Layout"),
+      bind_group_layouts: &[&skybox_transform_buffer_layout],
+      push_constant_ranges: &[],
+    });
+    let skybox_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+      label: Some("Skybox Render Pipeline"),
+      layout: Some(&skybox_layout),
+      vertex: VertexState {
+        module: &skybox_shader,
+        entry_point: "vs_main",
+        buffers: &[VertexBufferLayout {
+          array_stride: mem::size_of::<SkyVertex>() as BufferAddress,
+          step_mode: VertexStepMode::Vertex,
+          attributes: &vertex_attr_array![0 => Float32x3],
+        }],
+      },
+      fragment: Some(FragmentState {
+        module: &skybox_shader,
+        entry_point: "fs_main",
+        targets: &[Some(ColorTargetState {
+          format: config.format,
+          blend: Some(BlendState::REPLACE),
+          write_mask: ColorWrites::ALL,
+        })],
+      }),
+      primitive: PrimitiveState {
+        topology: PrimitiveTopology::TriangleList,
+        strip_index_format: None,
+        front_face: FrontFace::Cw,
+        cull_mode: Some(Face::Back),
+        unclipped_depth: false,
+        polygon_mode: PolygonMode::Fill,
+        conservative: false,
+      },
+      depth_stencil: Some(DepthStencilState {
+        format: DEPTH_FORMAT,
+        depth_write_enabled: false,
+        depth_compare: CompareFunction::Always,
+        stencil: StencilState::default(),
+        bias: DepthBiasState::default(),
+      }),
+      multisample: MultisampleState {
+        count: 1,
+        mask: !0,
+        alpha_to_coverage_enabled: false,
+      },
+      multiview: None,
+    });
+
+    let skybox_vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Skybox Vertex Buffer"),
+      contents: bytemuck::cast_slice(
+        &VERTICES
+          .iter()
+          .map(|vertex| SkyVertex {
+            position: vertex.position,
+          })
+          .collect::<Vec<_>>(),
+      ),
+      usage: BufferUsages::VERTEX,
+    });
+
     Ok(Self {
       last: Instant::now(),
       camera: Camera::new(),
       keys_down: HashSet::new(),
       transform,
+      skybox_transform,
       surface,
       device,
       queue,
@@ -585,6 +691,10 @@ impl<'a> App<'a> {
       pipeline,
       vertex_buffer,
       grass_bind_group,
+      skybox_transform_buffer,
+      skybox_transform_bind_group,
+      skybox_pipeline,
+      skybox_vertex_buffer,
     })
   }
 
@@ -662,15 +772,16 @@ impl<'a> App<'a> {
     }
 
     let PhysicalSize { width, height } = self.size();
-    self.transform = mat4::perspective(width as f32, height as f32, *FOV, Z_NEAR, Z_FAR)
+    let world_to_screen_space = mat4::perspective(width as f32, height as f32, *FOV, Z_NEAR, Z_FAR)
       * self
         .camera
         .world_transform(if self.keys_down.contains(&KeyCode::KeyC) {
           Direction::Backward
         } else {
           Direction::Forward
-        })
-      * mat4::translate(CUBE_TRANSLATE);
+        });
+    self.transform = world_to_screen_space * mat4::translate(CUBE_TRANSLATE);
+    self.skybox_transform = world_to_screen_space * mat4::translate(self.camera.position());
   }
 
   fn render(&self) -> Result<()> {
@@ -678,6 +789,17 @@ impl<'a> App<'a> {
     let view = output
       .texture
       .create_view(&TextureViewDescriptor::default());
+
+    self.queue.write_buffer(
+      &self.skybox_transform_buffer,
+      0,
+      bytemuck::cast_slice(&[self.skybox_transform]),
+    );
+    self.queue.write_buffer(
+      &self.transform_buffer,
+      0,
+      bytemuck::cast_slice(&[self.transform]),
+    );
 
     let mut encoder = self
       .device
@@ -692,9 +814,9 @@ impl<'a> App<'a> {
           resolve_target: None,
           ops: Operations {
             load: LoadOp::Clear(Color {
-              r: 0.1,
-              g: 0.2,
-              b: 0.3,
+              r: 0.0,
+              g: 0.0,
+              b: 0.0,
               a: 1.0,
             }),
             store: StoreOp::Store,
@@ -711,6 +833,12 @@ impl<'a> App<'a> {
         occlusion_query_set: None,
         timestamp_writes: None,
       });
+
+      render_pass.set_pipeline(&self.skybox_pipeline);
+      render_pass.set_bind_group(0, &self.skybox_transform_bind_group, &[]);
+      render_pass.set_vertex_buffer(0, self.skybox_vertex_buffer.slice(..));
+      render_pass.draw(0..VERTICES.len() as u32, 0..1);
+
       render_pass.set_pipeline(&self.pipeline);
       render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
@@ -718,11 +846,6 @@ impl<'a> App<'a> {
       render_pass.draw(0..VERTICES.len() as u32, 0..1);
     }
 
-    self.queue.write_buffer(
-      &self.transform_buffer,
-      0,
-      bytemuck::cast_slice(&[self.transform]),
-    );
     self.queue.submit(iter::once(encoder.finish()));
 
     output.present();
