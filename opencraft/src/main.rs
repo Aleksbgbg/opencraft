@@ -333,16 +333,20 @@ const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 /// Resources that need to be constructed based on the screen's resolution, and
 /// therefore reconstructed on resize.
 struct ScreenSpaceResources {
+  perspective: Mat4x4,
   depth_view: TextureView,
 }
 
 impl ScreenSpaceResources {
   pub fn construct(device: &Device, config: &SurfaceConfiguration) -> Self {
+    let width = config.width;
+    let height = config.height;
+
     let depth_texture = device.create_texture(&TextureDescriptor {
       label: Some("Depth Texture"),
       size: Extent3d {
-        width: config.width,
-        height: config.height,
+        width,
+        height,
         depth_or_array_layers: 1,
       },
       mip_level_count: 1,
@@ -354,6 +358,7 @@ impl ScreenSpaceResources {
     });
 
     Self {
+      perspective: mat4::perspective(width as f32, height as f32, *FOV, Z_NEAR, Z_FAR),
       depth_view: depth_texture.create_view(&TextureViewDescriptor::default()),
     }
   }
@@ -711,10 +716,6 @@ impl<'a> App<'a> {
     })
   }
 
-  fn size(&self) -> PhysicalSize<u32> {
-    PhysicalSize::new(self.config.width, self.config.height)
-  }
-
   fn resize(&mut self, PhysicalSize { width, height }: PhysicalSize<u32>) {
     assert!(
       (width != 0) && (height != 0),
@@ -784,8 +785,7 @@ impl<'a> App<'a> {
         .translate(CAMERA_MOVEMENT_SPEED * delta_secs * camera_movement.norm());
     }
 
-    let PhysicalSize { width, height } = self.size();
-    let world_to_screen_space = mat4::perspective(width as f32, height as f32, *FOV, Z_NEAR, Z_FAR)
+    let world_to_screen_space = self.screen.perspective
       * self
         .camera
         .world_transform(if self.keys_down.contains(&KeyCode::KeyC) {
