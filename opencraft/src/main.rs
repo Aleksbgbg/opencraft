@@ -814,14 +814,14 @@ impl<'a> App<'a> {
           resolve_target: None,
           ops: Operations {
             load: LoadOp::Clear(Color::BLACK),
-            store: StoreOp::Store,
+            store: StoreOp::Discard,
           },
         })],
         depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
           view: &self.depth_view,
           depth_ops: Some(Operations {
             load: LoadOp::Clear(1.0),
-            store: StoreOp::Store,
+            store: StoreOp::Discard,
           }),
           stencil_ops: None,
         }),
