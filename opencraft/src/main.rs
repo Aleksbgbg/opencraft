@@ -21,11 +21,11 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
   include_wgsl, vertex_attr_array, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry,
   BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
-  Buffer, BufferAddress, BufferBindingType, BufferUsages, Color, ColorTargetState, ColorWrites,
-  CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Device, Extent3d,
-  Face, Features, FragmentState, FrontFace, ImageCopyTexture, ImageDataLayout, Instance,
-  InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, Origin3d,
-  PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
+  Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
+  ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
+  DepthStencilState, Device, Extent3d, Face, Features, FragmentState, FrontFace, ImageCopyTexture,
+  ImageDataLayout, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
+  Origin3d, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
   PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
   RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
   SamplerBindingType, SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface,
@@ -369,8 +369,6 @@ struct App<'a> {
 
   camera: Camera,
   keys_down: HashSet<KeyCode>,
-  transform: Mat4x4,
-  skybox_transform: Mat4x4,
 
   surface: Surface<'a>,
   device: Device,
@@ -513,11 +511,11 @@ impl<'a> App<'a> {
       ],
     });
 
-    let transform = Mat4x4::default();
-    let transform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+    let transform_buffer = device.create_buffer(&BufferDescriptor {
       label: Some("Model -> Clip Space Transform Buffer"),
-      contents: bytemuck::cast_slice(&[transform]),
+      size: mem::size_of::<Mat4x4>() as BufferAddress,
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+      mapped_at_creation: false,
     });
     let transform_buffer_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
       label: Some("Transform Buffer Bind Group Layout"),
@@ -598,11 +596,11 @@ impl<'a> App<'a> {
       usage: BufferUsages::VERTEX,
     });
 
-    let skybox_transform = Mat4x4::default();
-    let skybox_transform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+    let skybox_transform_buffer = device.create_buffer(&BufferDescriptor {
       label: Some("Skybox Model -> Clip Space Transform Buffer"),
-      contents: bytemuck::cast_slice(&[skybox_transform]),
+      size: mem::size_of::<Mat4x4>() as BufferAddress,
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+      mapped_at_creation: false,
     });
     let skybox_transform_buffer_layout =
       device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -697,8 +695,6 @@ impl<'a> App<'a> {
       last: Instant::now(),
       camera: Camera::new(),
       keys_down: HashSet::new(),
-      transform,
-      skybox_transform,
       surface,
       device,
       queue,
@@ -784,6 +780,13 @@ impl<'a> App<'a> {
         .camera
         .translate(CAMERA_MOVEMENT_SPEED * delta_secs * camera_movement.norm());
     }
+  }
+
+  fn render(&self) -> Result<()> {
+    let output = self.surface.get_current_texture()?;
+    let view = output
+      .texture
+      .create_view(&TextureViewDescriptor::default());
 
     let world_to_screen_space = self.screen.perspective
       * self
@@ -793,25 +796,18 @@ impl<'a> App<'a> {
         } else {
           Direction::Forward
         });
-    self.transform = world_to_screen_space * mat4::translate(CUBE_TRANSLATE);
-    self.skybox_transform = world_to_screen_space * mat4::translate(self.camera.position());
-  }
-
-  fn render(&self) -> Result<()> {
-    let output = self.surface.get_current_texture()?;
-    let view = output
-      .texture
-      .create_view(&TextureViewDescriptor::default());
+    let transform = world_to_screen_space * mat4::translate(CUBE_TRANSLATE);
+    let skybox_transform = world_to_screen_space * mat4::translate(self.camera.position());
 
     self.queue.write_buffer(
       &self.skybox_transform_buffer,
       0,
-      bytemuck::cast_slice(&[self.skybox_transform]),
+      bytemuck::cast_slice(&[skybox_transform]),
     );
     self.queue.write_buffer(
       &self.transform_buffer,
       0,
-      bytemuck::cast_slice(&[self.transform]),
+      bytemuck::cast_slice(&[transform]),
     );
 
     let mut encoder = self
