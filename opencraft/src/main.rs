@@ -813,12 +813,7 @@ impl<'a> App<'a> {
           view: &view,
           resolve_target: None,
           ops: Operations {
-            load: LoadOp::Clear(Color {
-              r: 0.0,
-              g: 0.0,
-              b: 0.0,
-              a: 1.0,
-            }),
+            load: LoadOp::Clear(Color::BLACK),
             store: StoreOp::Store,
           },
         })],
