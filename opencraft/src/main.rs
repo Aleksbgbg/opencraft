@@ -20,14 +20,14 @@ use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
   include_wgsl, vertex_attr_array, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry,
-  BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
-  Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
+  BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType,
+  BlendState, Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
   ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
   DepthStencilState, Device, Extent3d, Face, Features, FragmentState, FrontFace, ImageCopyTexture,
   ImageDataLayout, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
   Origin3d, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
   PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-  RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+  RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler,
   SamplerBindingType, SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface,
   SurfaceConfiguration, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat,
   TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
@@ -335,10 +335,17 @@ const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 struct ScreenSpaceResources {
   perspective: Mat4x4,
   depth_view: TextureView,
+  render_view: TextureView,
+  fullscreen_copy_texture_bind_group: BindGroup,
 }
 
 impl ScreenSpaceResources {
-  pub fn construct(device: &Device, config: &SurfaceConfiguration) -> Self {
+  pub fn construct(
+    device: &Device,
+    config: &SurfaceConfiguration,
+    fullscreen_copy_texture_bind_group_layout: &BindGroupLayout,
+    default_sampler: &Sampler,
+  ) -> Self {
     let width = config.width;
     let height = config.height;
 
@@ -357,9 +364,42 @@ impl ScreenSpaceResources {
       view_formats: &[],
     });
 
+    let render_texture = device.create_texture(&TextureDescriptor {
+      label: Some("Offscreen Render Texture"),
+      size: Extent3d {
+        width,
+        height,
+        depth_or_array_layers: 1,
+      },
+      mip_level_count: 1,
+      sample_count: 1,
+      dimension: TextureDimension::D2,
+      format: config.format,
+      usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+      view_formats: &[],
+    });
+    let render_view = render_texture.create_view(&TextureViewDescriptor::default());
+
+    let fullscreen_copy_texture_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Fullscreen Copy Bind Group"),
+      layout: fullscreen_copy_texture_bind_group_layout,
+      entries: &[
+        BindGroupEntry {
+          binding: 0,
+          resource: BindingResource::TextureView(&render_view),
+        },
+        BindGroupEntry {
+          binding: 1,
+          resource: BindingResource::Sampler(default_sampler),
+        },
+      ],
+    });
+
     Self {
       perspective: mat4::perspective(width as f32, height as f32, *FOV, Z_NEAR, Z_FAR),
       depth_view: depth_texture.create_view(&TextureViewDescriptor::default()),
+      render_view,
+      fullscreen_copy_texture_bind_group,
     }
   }
 }
@@ -374,6 +414,7 @@ struct App<'a> {
   device: Device,
   queue: Queue,
   config: SurfaceConfiguration,
+  default_sampler: Sampler,
 
   screen: ScreenSpaceResources,
 
@@ -387,6 +428,9 @@ struct App<'a> {
   skybox_transform_bind_group: BindGroup,
   skybox_pipeline: RenderPipeline,
   skybox_vertex_buffer: Buffer,
+
+  fullscreen_copy_texture_bind_group_layout: BindGroupLayout,
+  fullscreen_copy_pipeline: RenderPipeline,
 }
 
 impl<'a> App<'a> {
@@ -437,6 +481,8 @@ impl<'a> App<'a> {
 
     surface.configure(&device, &config);
 
+    let default_sampler = device.create_sampler(&SamplerDescriptor::default());
+
     let grass_image = Reader::open("assets/textures/block/grass.png")?.decode()?;
     let grass_rgba = grass_image.to_rgba8();
     let (grass_width, grass_height) = grass_image.dimensions();
@@ -474,7 +520,6 @@ impl<'a> App<'a> {
     );
 
     let grass_texture_view = grass_texture.create_view(&TextureViewDescriptor::default());
-    let grass_sampler = device.create_sampler(&SamplerDescriptor::default());
     let grass_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
       label: Some("Grass Bind Group Layout"),
       entries: &[
@@ -506,7 +551,7 @@ impl<'a> App<'a> {
         },
         BindGroupEntry {
           binding: 1,
-          resource: BindingResource::Sampler(&grass_sampler),
+          resource: BindingResource::Sampler(&default_sampler),
         },
       ],
     });
@@ -689,7 +734,76 @@ impl<'a> App<'a> {
       usage: BufferUsages::VERTEX,
     });
 
-    let screen = ScreenSpaceResources::construct(&device, &config);
+    let fullscreen_copy_texture_bind_group_layout =
+      device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Fullscreen Copy Bind Group Layout"),
+        entries: &[
+          BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::FRAGMENT,
+            ty: BindingType::Texture {
+              sample_type: TextureSampleType::Float { filterable: false },
+              view_dimension: TextureViewDimension::D2,
+              multisampled: false,
+            },
+            count: None,
+          },
+          BindGroupLayoutEntry {
+            binding: 1,
+            visibility: ShaderStages::FRAGMENT,
+            ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
+            count: None,
+          },
+        ],
+      });
+    let fullscreen_copy_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+      label: Some("Fullscreen Copy Render Pipeline Layout"),
+      bind_group_layouts: &[&fullscreen_copy_texture_bind_group_layout],
+      push_constant_ranges: &[],
+    });
+    let fullscreen_copy_shader =
+      device.create_shader_module(include_wgsl!("shaders/fullscreen_copy.wgsl"));
+    let fullscreen_copy_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+      label: Some("Fullscreen Copy Render Pipeline"),
+      layout: Some(&fullscreen_copy_layout),
+      vertex: VertexState {
+        module: &fullscreen_copy_shader,
+        entry_point: "vs_main",
+        buffers: &[],
+      },
+      fragment: Some(FragmentState {
+        module: &fullscreen_copy_shader,
+        entry_point: "fs_main",
+        targets: &[Some(ColorTargetState {
+          format: config.format,
+          blend: Some(BlendState::REPLACE),
+          write_mask: ColorWrites::ALL,
+        })],
+      }),
+      primitive: PrimitiveState {
+        topology: PrimitiveTopology::TriangleStrip,
+        strip_index_format: None,
+        front_face: FrontFace::Ccw,
+        cull_mode: None,
+        unclipped_depth: false,
+        polygon_mode: PolygonMode::Fill,
+        conservative: false,
+      },
+      depth_stencil: None,
+      multisample: MultisampleState {
+        count: 1,
+        mask: !0,
+        alpha_to_coverage_enabled: false,
+      },
+      multiview: None,
+    });
+
+    let screen = ScreenSpaceResources::construct(
+      &device,
+      &config,
+      &fullscreen_copy_texture_bind_group_layout,
+      &default_sampler,
+    );
 
     Ok(Self {
       last: Instant::now(),
@@ -699,6 +813,7 @@ impl<'a> App<'a> {
       device,
       queue,
       config,
+      default_sampler,
       screen,
       transform_buffer,
       transform_bind_group,
@@ -709,6 +824,8 @@ impl<'a> App<'a> {
       skybox_transform_bind_group,
       skybox_pipeline,
       skybox_vertex_buffer,
+      fullscreen_copy_texture_bind_group_layout,
+      fullscreen_copy_pipeline,
     })
   }
 
@@ -725,7 +842,12 @@ impl<'a> App<'a> {
 
     self.surface.configure(&self.device, &self.config);
 
-    self.screen = ScreenSpaceResources::construct(&self.device, &self.config);
+    self.screen = ScreenSpaceResources::construct(
+      &self.device,
+      &self.config,
+      &self.fullscreen_copy_texture_bind_group_layout,
+      &self.default_sampler,
+    );
   }
 
   fn compose(&mut self) -> Result<()> {
@@ -817,13 +939,13 @@ impl<'a> App<'a> {
       });
     {
       let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-        label: Some("Render Pass"),
+        label: Some("Main Render Pass"),
         color_attachments: &[Some(RenderPassColorAttachment {
-          view: &view,
+          view: &self.screen.render_view,
           resolve_target: None,
           ops: Operations {
             load: LoadOp::Clear(Color::BLACK),
-            store: StoreOp::Discard,
+            store: StoreOp::Store,
           },
         })],
         depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
@@ -848,6 +970,26 @@ impl<'a> App<'a> {
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
       render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
       render_pass.draw(0..VERTICES.len() as u32, 0..1);
+    }
+    {
+      let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+        label: Some("UI Render Pass"),
+        color_attachments: &[Some(RenderPassColorAttachment {
+          view: &view,
+          resolve_target: None,
+          ops: Operations {
+            load: LoadOp::Clear(Color::TRANSPARENT),
+            store: StoreOp::Discard,
+          },
+        })],
+        depth_stencil_attachment: None,
+        occlusion_query_set: None,
+        timestamp_writes: None,
+      });
+
+      render_pass.set_pipeline(&self.fullscreen_copy_pipeline);
+      render_pass.set_bind_group(0, &self.screen.fullscreen_copy_texture_bind_group, &[]);
+      render_pass.draw(0..4, 0..1);
     }
 
     self.queue.submit(iter::once(encoder.finish()));
