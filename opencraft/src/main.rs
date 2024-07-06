@@ -328,6 +328,37 @@ struct SkyVertex {
   position: [f32; 3],
 }
 
+const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+
+/// Resources that need to be constructed based on the screen's resolution, and
+/// therefore reconstructed on resize.
+struct ScreenSpaceResources {
+  depth_view: TextureView,
+}
+
+impl ScreenSpaceResources {
+  pub fn construct(device: &Device, config: &SurfaceConfiguration) -> Self {
+    let depth_texture = device.create_texture(&TextureDescriptor {
+      label: Some("Depth Texture"),
+      size: Extent3d {
+        width: config.width,
+        height: config.height,
+        depth_or_array_layers: 1,
+      },
+      mip_level_count: 1,
+      sample_count: 1,
+      dimension: TextureDimension::D2,
+      format: DEPTH_FORMAT,
+      usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+      view_formats: &[],
+    });
+
+    Self {
+      depth_view: depth_texture.create_view(&TextureViewDescriptor::default()),
+    }
+  }
+}
+
 struct App<'a> {
   last: Instant,
 
@@ -340,7 +371,9 @@ struct App<'a> {
   device: Device,
   queue: Queue,
   config: SurfaceConfiguration,
-  depth_view: TextureView,
+
+  screen: ScreenSpaceResources,
+
   transform_buffer: Buffer,
   transform_bind_group: BindGroup,
   pipeline: RenderPipeline,
@@ -351,26 +384,6 @@ struct App<'a> {
   skybox_transform_bind_group: BindGroup,
   skybox_pipeline: RenderPipeline,
   skybox_vertex_buffer: Buffer,
-}
-
-const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
-fn create_depth_texture(device: &Device, config: &SurfaceConfiguration) -> TextureView {
-  let texture = device.create_texture(&TextureDescriptor {
-    label: Some("Depth Texture"),
-    size: Extent3d {
-      width: config.width,
-      height: config.height,
-      depth_or_array_layers: 1,
-    },
-    mip_level_count: 1,
-    sample_count: 1,
-    dimension: TextureDimension::D2,
-    format: DEPTH_FORMAT,
-    usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-    view_formats: &[],
-  });
-
-  texture.create_view(&TextureViewDescriptor::default())
 }
 
 impl<'a> App<'a> {
@@ -494,8 +507,6 @@ impl<'a> App<'a> {
         },
       ],
     });
-
-    let depth_view = create_depth_texture(&device, &config);
 
     let transform = Mat4x4::default();
     let transform_buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -675,6 +686,8 @@ impl<'a> App<'a> {
       usage: BufferUsages::VERTEX,
     });
 
+    let screen = ScreenSpaceResources::construct(&device, &config);
+
     Ok(Self {
       last: Instant::now(),
       camera: Camera::new(),
@@ -685,7 +698,7 @@ impl<'a> App<'a> {
       device,
       queue,
       config,
-      depth_view,
+      screen,
       transform_buffer,
       transform_bind_group,
       pipeline,
@@ -715,7 +728,7 @@ impl<'a> App<'a> {
 
     self.surface.configure(&self.device, &self.config);
 
-    self.depth_view = create_depth_texture(&self.device, &self.config);
+    self.screen = ScreenSpaceResources::construct(&self.device, &self.config);
   }
 
   fn compose(&mut self) -> Result<()> {
@@ -818,7 +831,7 @@ impl<'a> App<'a> {
           },
         })],
         depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-          view: &self.depth_view,
+          view: &self.screen.depth_view,
           depth_ops: Some(Operations {
             load: LoadOp::Clear(1.0),
             store: StoreOp::Discard,
