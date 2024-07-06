@@ -437,7 +437,7 @@ impl<'a> App<'a> {
 
     surface.configure(&device, &config);
 
-    let grass_image = Reader::open("assets/textures/grass.png")?.decode()?;
+    let grass_image = Reader::open("assets/textures/block/grass.png")?.decode()?;
     let grass_rgba = grass_image.to_rgba8();
     let (grass_width, grass_height) = grass_image.dimensions();
 
