@@ -23,3 +23,18 @@ pub fn nearly_eq(lhs: f32, rhs: f32) -> bool {
 pub fn nearly_eq_tolerance(lhs: f32, rhs: f32, tolerance_multiplier: f32) -> bool {
   (lhs - rhs).abs() <= (tolerance_multiplier * f32::EPSILON)
 }
+
+pub fn align(value: usize, alignment: usize) -> usize {
+  let misalignment = value % alignment;
+  let padding = (alignment - misalignment) % alignment;
+
+  value + padding
+}
+
+/// Split a value into two halves, one rounded up, the other rounded down.
+/// Useful when you need to split an integer into two halves, whether it is odd
+/// or even.
+pub fn split(value: f32) -> (f32, f32) {
+  let half = value / 2.0;
+  (half.ceil(), half.floor())
+}

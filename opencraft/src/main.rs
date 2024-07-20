@@ -8,7 +8,7 @@ use crate::camera::{Camera, Direction};
 use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
-use crate::core::math::{X_AXIS, Z_AXIS};
+use crate::core::math::{self, X_AXIS, Z_AXIS};
 use anyhow::{anyhow, Result};
 use bytemuck::NoUninit;
 use image::io::Reader;
@@ -328,6 +328,35 @@ struct SkyVertex {
   position: [f32; 3],
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, NoUninit)]
+struct Quad {
+  left: f32,
+  right: f32,
+  top: f32,
+  bot: f32,
+}
+
+fn calculate_crosshair_quad(screen_width: f32, screen_height: f32, crosshair_size: u32) -> Quad {
+  const WIDTH_FRACTION: f32 = 0.008;
+
+  let size_pixels = (WIDTH_FRACTION * screen_width).ceil() as usize;
+  let size_pixels = math::align(size_pixels, crosshair_size.try_into().unwrap());
+
+  let (pixels_left, pixels_right) = math::split(size_pixels as f32);
+
+  let (width_left, width_right) = math::split(screen_width);
+  let (height_top, height_bot) = math::split(screen_height);
+
+  Quad {
+    left: -(pixels_left / width_left),
+    right: pixels_right / width_right,
+    // To ensure crosshair remains square, use the same amount of pixels vertically as horizontally
+    top: -(pixels_left / height_top),
+    bot: pixels_right / height_bot,
+  }
+}
+
 const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 
 /// Resources that need to be constructed based on the screen's resolution, and
@@ -431,6 +460,11 @@ struct App<'a> {
 
   fullscreen_copy_texture_bind_group_layout: BindGroupLayout,
   fullscreen_copy_pipeline: RenderPipeline,
+
+  crosshair_size: u32,
+  crosshair_quad_buffer: Buffer,
+  crosshair_bind_group: BindGroup,
+  crosshair_pipeline: RenderPipeline,
 }
 
 impl<'a> App<'a> {
@@ -798,6 +832,146 @@ impl<'a> App<'a> {
       multiview: None,
     });
 
+    let crosshair_image = Reader::open("assets/textures/ui/crosshair.png")?.decode()?;
+    let crosshair_alpha = crosshair_image.to_luma8();
+    let (crosshair_width, crosshair_height) = crosshair_image.dimensions();
+
+    let crosshair_size = Extent3d {
+      width: crosshair_width,
+      height: crosshair_height,
+      depth_or_array_layers: 1,
+    };
+    let crosshair_texture = device.create_texture(&TextureDescriptor {
+      label: Some("Crosshair Alpha Texture"),
+      size: crosshair_size,
+      mip_level_count: 1,
+      sample_count: 1,
+      dimension: TextureDimension::D2,
+      format: TextureFormat::R8Unorm,
+      usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+      view_formats: &[],
+    });
+
+    queue.write_texture(
+      ImageCopyTexture {
+        texture: &crosshair_texture,
+        mip_level: 0,
+        origin: Origin3d::ZERO,
+        aspect: TextureAspect::All,
+      },
+      &crosshair_alpha,
+      ImageDataLayout {
+        offset: 0,
+        bytes_per_row: Some(crosshair_size.width),
+        rows_per_image: Some(crosshair_size.height),
+      },
+      crosshair_size,
+    );
+
+    let crosshair_quad_buffer = device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Crosshair Normalised Size Buffer"),
+      contents: bytemuck::cast_slice(&[calculate_crosshair_quad(
+        config.width as f32,
+        config.height as f32,
+        crosshair_width,
+      )]),
+      usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+    });
+
+    let crosshair_texture_view = crosshair_texture.create_view(&TextureViewDescriptor::default());
+    let crosshair_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+      label: Some("Crosshair Bind Group Layout"),
+      entries: &[
+        BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::VERTEX,
+          ty: BindingType::Buffer {
+            ty: BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+          },
+          count: None,
+        },
+        BindGroupLayoutEntry {
+          binding: 1,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Texture {
+            sample_type: TextureSampleType::Float { filterable: true },
+            view_dimension: TextureViewDimension::D2,
+            multisampled: false,
+          },
+          count: None,
+        },
+        BindGroupLayoutEntry {
+          binding: 2,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Sampler(SamplerBindingType::Filtering),
+          count: None,
+        },
+      ],
+    });
+    let crosshair_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Crosshair Bind Group"),
+      layout: &crosshair_bind_group_layout,
+      entries: &[
+        BindGroupEntry {
+          binding: 0,
+          resource: BindingResource::Buffer(crosshair_quad_buffer.as_entire_buffer_binding()),
+        },
+        BindGroupEntry {
+          binding: 1,
+          resource: BindingResource::TextureView(&crosshair_texture_view),
+        },
+        BindGroupEntry {
+          binding: 2,
+          resource: BindingResource::Sampler(&default_sampler),
+        },
+      ],
+    });
+    let crosshair_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+      label: Some("Crosshair Render Pipeline Layout"),
+      bind_group_layouts: &[
+        &fullscreen_copy_texture_bind_group_layout,
+        &crosshair_bind_group_layout,
+      ],
+      push_constant_ranges: &[],
+    });
+    let crosshair_shader = device.create_shader_module(include_wgsl!("shaders/crosshair.wgsl"));
+    let crosshair_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+      label: Some("Crosshair Render Pipeline"),
+      layout: Some(&crosshair_layout),
+      vertex: VertexState {
+        module: &crosshair_shader,
+        entry_point: "vs_main",
+        buffers: &[],
+      },
+      fragment: Some(FragmentState {
+        module: &crosshair_shader,
+        entry_point: "fs_main",
+        targets: &[Some(ColorTargetState {
+          format: config.format,
+          blend: Some(BlendState::ALPHA_BLENDING),
+          write_mask: ColorWrites::ALL,
+        })],
+      }),
+      primitive: PrimitiveState {
+        topology: PrimitiveTopology::TriangleStrip,
+        strip_index_format: None,
+        front_face: FrontFace::Ccw,
+        cull_mode: None,
+        unclipped_depth: false,
+        polygon_mode: PolygonMode::Fill,
+        conservative: false,
+      },
+      depth_stencil: None,
+      multisample: MultisampleState {
+        count: 1,
+        mask: !0,
+        alpha_to_coverage_enabled: false,
+      },
+      multiview: None,
+    });
+
     let screen = ScreenSpaceResources::construct(
       &device,
       &config,
@@ -826,6 +1000,10 @@ impl<'a> App<'a> {
       skybox_vertex_buffer,
       fullscreen_copy_texture_bind_group_layout,
       fullscreen_copy_pipeline,
+      crosshair_size: crosshair_width,
+      crosshair_quad_buffer,
+      crosshair_bind_group,
+      crosshair_pipeline,
     })
   }
 
@@ -847,6 +1025,16 @@ impl<'a> App<'a> {
       &self.config,
       &self.fullscreen_copy_texture_bind_group_layout,
       &self.default_sampler,
+    );
+
+    self.queue.write_buffer(
+      &self.crosshair_quad_buffer,
+      0,
+      bytemuck::cast_slice(&[calculate_crosshair_quad(
+        width as f32,
+        height as f32,
+        self.crosshair_size,
+      )]),
     );
   }
 
@@ -989,6 +1177,10 @@ impl<'a> App<'a> {
 
       render_pass.set_pipeline(&self.fullscreen_copy_pipeline);
       render_pass.set_bind_group(0, &self.screen.fullscreen_copy_texture_bind_group, &[]);
+      render_pass.draw(0..4, 0..1);
+
+      render_pass.set_pipeline(&self.crosshair_pipeline);
+      render_pass.set_bind_group(1, &self.crosshair_bind_group, &[]);
       render_pass.draw(0..4, 0..1);
     }
 
