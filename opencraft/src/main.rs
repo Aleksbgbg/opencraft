@@ -633,7 +633,7 @@ impl<'a> App<'a> {
         buffers: &[VertexBufferLayout {
           array_stride: mem::size_of::<Vertex>() as BufferAddress,
           step_mode: VertexStepMode::Vertex,
-          attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x3],
+          attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x2],
         }],
       },
       fragment: Some(FragmentState {
