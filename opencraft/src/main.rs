@@ -24,14 +24,15 @@ use wgpu::{
   BlendState, Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
   ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
   DepthStencilState, Device, Extent3d, Face, Features, FragmentState, FrontFace, ImageCopyTexture,
-  ImageDataLayout, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
-  Origin3d, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
-  PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-  RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler,
-  SamplerBindingType, SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface,
-  SurfaceConfiguration, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat,
-  TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
-  VertexBufferLayout, VertexState, VertexStepMode,
+  ImageDataLayout, Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MultisampleState,
+  Operations, Origin3d, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode,
+  PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
+  RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+  RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
+  SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration,
+  TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
+  TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexBufferLayout,
+  VertexState, VertexStepMode,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent};
@@ -489,6 +490,7 @@ impl<'a> App<'a> {
           required_features: Features::empty(),
           required_limits: Limits::default(),
           label: None,
+          memory_hints: MemoryHints::Performance,
         },
         None,
       )
@@ -630,6 +632,7 @@ impl<'a> App<'a> {
       vertex: VertexState {
         module: &shader,
         entry_point: "vs_main",
+        compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
           array_stride: mem::size_of::<Vertex>() as BufferAddress,
           step_mode: VertexStepMode::Vertex,
@@ -639,6 +642,7 @@ impl<'a> App<'a> {
       fragment: Some(FragmentState {
         module: &shader,
         entry_point: "fs_main",
+        compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
           format: config.format,
           blend: Some(BlendState::REPLACE),
@@ -667,6 +671,7 @@ impl<'a> App<'a> {
         alpha_to_coverage_enabled: false,
       },
       multiview: None,
+      cache: None,
     });
 
     let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -716,6 +721,7 @@ impl<'a> App<'a> {
       vertex: VertexState {
         module: &skybox_shader,
         entry_point: "vs_main",
+        compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
           array_stride: mem::size_of::<SkyVertex>() as BufferAddress,
           step_mode: VertexStepMode::Vertex,
@@ -725,6 +731,7 @@ impl<'a> App<'a> {
       fragment: Some(FragmentState {
         module: &skybox_shader,
         entry_point: "fs_main",
+        compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
           format: config.format,
           blend: Some(BlendState::REPLACE),
@@ -753,6 +760,7 @@ impl<'a> App<'a> {
         alpha_to_coverage_enabled: false,
       },
       multiview: None,
+      cache: None,
     });
 
     let skybox_vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -803,11 +811,13 @@ impl<'a> App<'a> {
       vertex: VertexState {
         module: &fullscreen_copy_shader,
         entry_point: "vs_main",
+        compilation_options: PipelineCompilationOptions::default(),
         buffers: &[],
       },
       fragment: Some(FragmentState {
         module: &fullscreen_copy_shader,
         entry_point: "fs_main",
+        compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
           format: config.format,
           blend: Some(BlendState::REPLACE),
@@ -830,6 +840,7 @@ impl<'a> App<'a> {
         alpha_to_coverage_enabled: false,
       },
       multiview: None,
+      cache: None,
     });
 
     let crosshair_image = Reader::open("assets/textures/ui/crosshair.png")?.decode()?;
@@ -943,11 +954,13 @@ impl<'a> App<'a> {
       vertex: VertexState {
         module: &crosshair_shader,
         entry_point: "vs_main",
+        compilation_options: PipelineCompilationOptions::default(),
         buffers: &[],
       },
       fragment: Some(FragmentState {
         module: &crosshair_shader,
         entry_point: "fs_main",
+        compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
           format: config.format,
           blend: Some(BlendState::ALPHA_BLENDING),
@@ -970,6 +983,7 @@ impl<'a> App<'a> {
         alpha_to_coverage_enabled: false,
       },
       multiview: None,
+      cache: None,
     });
 
     let screen = ScreenSpaceResources::construct(
