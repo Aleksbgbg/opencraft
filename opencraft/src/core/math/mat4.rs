@@ -2,14 +2,14 @@ use crate::core::math::angle::Angle;
 use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
-use bytemuck::NoUninit;
 use std::ops::{Index, IndexMut, Mul};
+use zerocopy::{Immutable, IntoBytes};
 
 // Shaders are column-major
 type Column = [f32; 4];
 
 #[repr(C)]
-#[derive(Clone, Copy, Default, Debug, NoUninit)]
+#[derive(Clone, Default, Debug, Immutable, IntoBytes)]
 pub struct Mat4x4 {
   values: [Column; 4],
 }
@@ -39,10 +39,10 @@ impl IndexMut<(usize, usize)> for Mat4x4 {
   }
 }
 
-impl Mul<Mat4x4> for Mat4x4 {
+impl Mul<&Mat4x4> for &Mat4x4 {
   type Output = Mat4x4;
 
-  fn mul(self, rhs: Mat4x4) -> Self::Output {
+  fn mul(self, rhs: &Mat4x4) -> Self::Output {
     let mut result = Mat4x4::default();
     for col in 0..4 {
       for row in 0..4 {

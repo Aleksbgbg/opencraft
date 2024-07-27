@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.82", default-features = false, features = ["backtrace", "std"] }
-bytemuck = { version = "1.15.0", default-features = false, features = ["derive"] }
 derive_more = { version = "0.99.17", default-features = false, features = ["add", "add_assign", "mul", "mul_assign", "not"] }
 env_logger = { version = "0.11.3", default-features = false, features = ["auto-color"] }
 image = { version = "0.25.1", default-features = false, features = ["png"] }
@@ -13,6 +12,7 @@ lazy_static = { version = "1.4.0", default-features = false }
 pollster = { version = "0.3.0", default-features = false }
 wgpu = { version = "22.0.0", default-features = false, features = ["wgsl"] }
 winit = { version = "0.29.15", default-features = false, features = ["rwh_06", "x11"] }
+zerocopy = { version = "0.8.0-alpha.25", default-features = false, features = ["derive"] }
 
 [build-dependencies]
 omnicopy_to_output = { version = "0.1.1", default-features = false }

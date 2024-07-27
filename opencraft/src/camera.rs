@@ -60,6 +60,6 @@ impl Camera {
       Direction::Backward => Rotor3::angle_plane(HALF_ROTATION, ZX_PLANE) * world_rotor,
     };
 
-    mat4::rotate(world_rotor) * mat4::translate(-self.position)
+    &mat4::rotate(world_rotor) * &mat4::translate(-self.position)
   }
 }

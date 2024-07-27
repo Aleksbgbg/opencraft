@@ -10,7 +10,6 @@ use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{self, X_AXIS, Z_AXIS};
 use anyhow::{anyhow, Result};
-use bytemuck::NoUninit;
 use image::io::Reader;
 use image::GenericImageView;
 use lazy_static::lazy_static;
@@ -39,6 +38,7 @@ use winit::event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowBuilder};
+use zerocopy::{Immutable, IntoBytes};
 
 fn main() -> Result<()> {
   pollster::block_on(start())?;
@@ -164,7 +164,7 @@ const TEX_RIGHT_TOP: f32 = 16.0 / TEX_HEIGHT;
 const TEX_RIGHT_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
 
 #[repr(C)]
-#[derive(Clone, Copy, NoUninit)]
+#[derive(Clone, Copy, Immutable, IntoBytes)]
 struct Vertex {
   position: [f32; 3],
   texture_coordinate: [f32; 2],
@@ -324,13 +324,13 @@ const VERTICES: &[Vertex] = &[
 ];
 
 #[repr(C)]
-#[derive(Clone, Copy, NoUninit)]
+#[derive(Clone, Copy, Immutable, IntoBytes)]
 struct SkyVertex {
   position: [f32; 3],
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, NoUninit)]
+#[derive(Clone, Copy, Immutable, IntoBytes)]
 struct Quad {
   left: f32,
   right: f32,
@@ -676,7 +676,7 @@ impl<'a> App<'a> {
 
     let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
       label: Some("Vertex Buffer"),
-      contents: bytemuck::cast_slice(VERTICES),
+      contents: VERTICES.as_bytes(),
       usage: BufferUsages::VERTEX,
     });
 
@@ -765,14 +765,13 @@ impl<'a> App<'a> {
 
     let skybox_vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
       label: Some("Skybox Vertex Buffer"),
-      contents: bytemuck::cast_slice(
-        &VERTICES
-          .iter()
-          .map(|vertex| SkyVertex {
-            position: vertex.position,
-          })
-          .collect::<Vec<_>>(),
-      ),
+      contents: VERTICES
+        .iter()
+        .map(|vertex| SkyVertex {
+          position: vertex.position,
+        })
+        .collect::<Vec<_>>()
+        .as_bytes(),
       usage: BufferUsages::VERTEX,
     });
 
@@ -881,11 +880,12 @@ impl<'a> App<'a> {
 
     let crosshair_quad_buffer = device.create_buffer_init(&BufferInitDescriptor {
       label: Some("Crosshair Normalised Size Buffer"),
-      contents: bytemuck::cast_slice(&[calculate_crosshair_quad(
+      contents: calculate_crosshair_quad(
         config.width as f32,
         config.height as f32,
         crosshair_width,
-      )]),
+      )
+      .as_bytes(),
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
     });
 
@@ -1044,11 +1044,7 @@ impl<'a> App<'a> {
     self.queue.write_buffer(
       &self.crosshair_quad_buffer,
       0,
-      bytemuck::cast_slice(&[calculate_crosshair_quad(
-        width as f32,
-        height as f32,
-        self.crosshair_size,
-      )]),
+      calculate_crosshair_quad(width as f32, height as f32, self.crosshair_size).as_bytes(),
     );
   }
 
@@ -1112,27 +1108,25 @@ impl<'a> App<'a> {
       .texture
       .create_view(&TextureViewDescriptor::default());
 
-    let world_to_screen_space = self.screen.perspective
-      * self
+    let world_to_screen_space = &self.screen.perspective
+      * &self
         .camera
         .world_transform(if self.keys_down.contains(&KeyCode::KeyC) {
           Direction::Backward
         } else {
           Direction::Forward
         });
-    let transform = world_to_screen_space * mat4::translate(CUBE_TRANSLATE);
-    let skybox_transform = world_to_screen_space * mat4::translate(self.camera.position());
+    let transform = &world_to_screen_space * &mat4::translate(CUBE_TRANSLATE);
+    let skybox_transform = &world_to_screen_space * &mat4::translate(self.camera.position());
 
     self.queue.write_buffer(
       &self.skybox_transform_buffer,
       0,
-      bytemuck::cast_slice(&[skybox_transform]),
+      skybox_transform.as_bytes(),
     );
-    self.queue.write_buffer(
-      &self.transform_buffer,
-      0,
-      bytemuck::cast_slice(&[transform]),
-    );
+    self
+      .queue
+      .write_buffer(&self.transform_buffer, 0, transform.as_bytes());
 
     let mut encoder = self
       .device
