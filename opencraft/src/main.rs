@@ -9,9 +9,8 @@ use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{self, X_AXIS, Z_AXIS};
-use anyhow::{Result, anyhow};
-use image::GenericImageView;
-use image::io::Reader;
+use anyhow::Result;
+use image::{GenericImageView, ImageReader};
 use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
@@ -22,16 +21,17 @@ use wgpu::{
   BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
   Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
   ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
-  DepthStencilState, Device, Extent3d, Face, Features, FragmentState, FrontFace, ImageCopyTexture,
-  ImageDataLayout, Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MultisampleState,
+  DepthStencilState, Device, ExperimentalFeatures, Extent3d, Face, Features, FragmentState,
+  FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MultisampleState,
   Operations, Origin3d, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode,
   PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
   RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
   RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
   SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration,
-  TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
-  TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexBufferLayout,
-  VertexState, VertexStepMode, include_wgsl, vertex_attr_array,
+  TexelCopyBufferLayout, TexelCopyTextureInfo, TextureAspect, TextureDescriptor, TextureDimension,
+  TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
+  TextureViewDimension, Trace, VertexBufferLayout, VertexState, VertexStepMode, include_wgsl,
+  vertex_attr_array,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent};
@@ -470,7 +470,7 @@ struct App<'a> {
 
 impl<'a> App<'a> {
   async fn new(window: &'a Window) -> Result<Self> {
-    let instance = Instance::new(InstanceDescriptor {
+    let instance = Instance::new(&InstanceDescriptor {
       backends: Backends::all(),
       ..Default::default()
     });
@@ -481,19 +481,17 @@ impl<'a> App<'a> {
         compatible_surface: Some(&surface),
         force_fallback_adapter: false,
       })
-      .await
-      .ok_or_else(|| anyhow!("no compatible adapter available"))?;
+      .await?;
 
     let (device, queue) = adapter
-      .request_device(
-        &wgpu::DeviceDescriptor {
-          required_features: Features::empty(),
-          required_limits: Limits::default(),
-          label: None,
-          memory_hints: MemoryHints::Performance,
-        },
-        None,
-      )
+      .request_device(&wgpu::DeviceDescriptor {
+        required_features: Features::empty(),
+        required_limits: Limits::default(),
+        label: None,
+        experimental_features: ExperimentalFeatures::disabled(),
+        memory_hints: MemoryHints::Performance,
+        trace: Trace::Off,
+      })
       .await?;
 
     let capabilities = surface.get_capabilities(&adapter);
@@ -519,7 +517,7 @@ impl<'a> App<'a> {
 
     let default_sampler = device.create_sampler(&SamplerDescriptor::default());
 
-    let grass_image = Reader::open("assets/textures/block/grass.png")?.decode()?;
+    let grass_image = ImageReader::open("assets/textures/block/grass.png")?.decode()?;
     let grass_rgba = grass_image.to_rgba8();
     let (grass_width, grass_height) = grass_image.dimensions();
 
@@ -540,14 +538,14 @@ impl<'a> App<'a> {
     });
 
     queue.write_texture(
-      ImageCopyTexture {
+      TexelCopyTextureInfo {
         texture: &grass_texture,
         mip_level: 0,
         origin: Origin3d::ZERO,
         aspect: TextureAspect::All,
       },
       &grass_rgba,
-      ImageDataLayout {
+      TexelCopyBufferLayout {
         offset: 0,
         bytes_per_row: Some(4 * grass_size.width),
         rows_per_image: Some(grass_size.height),
@@ -631,7 +629,7 @@ impl<'a> App<'a> {
       layout: Some(&layout),
       vertex: VertexState {
         module: &shader,
-        entry_point: "vs_main",
+        entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
           array_stride: mem::size_of::<Vertex>() as BufferAddress,
@@ -641,7 +639,7 @@ impl<'a> App<'a> {
       },
       fragment: Some(FragmentState {
         module: &shader,
-        entry_point: "fs_main",
+        entry_point: Some("fs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
           format: config.format,
@@ -720,7 +718,7 @@ impl<'a> App<'a> {
       layout: Some(&skybox_layout),
       vertex: VertexState {
         module: &skybox_shader,
-        entry_point: "vs_main",
+        entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
           array_stride: mem::size_of::<SkyVertex>() as BufferAddress,
@@ -730,7 +728,7 @@ impl<'a> App<'a> {
       },
       fragment: Some(FragmentState {
         module: &skybox_shader,
-        entry_point: "fs_main",
+        entry_point: Some("fs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
           format: config.format,
@@ -809,13 +807,13 @@ impl<'a> App<'a> {
       layout: Some(&fullscreen_copy_layout),
       vertex: VertexState {
         module: &fullscreen_copy_shader,
-        entry_point: "vs_main",
+        entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[],
       },
       fragment: Some(FragmentState {
         module: &fullscreen_copy_shader,
-        entry_point: "fs_main",
+        entry_point: Some("fs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
           format: config.format,
@@ -842,7 +840,7 @@ impl<'a> App<'a> {
       cache: None,
     });
 
-    let crosshair_image = Reader::open("assets/textures/ui/crosshair.png")?.decode()?;
+    let crosshair_image = ImageReader::open("assets/textures/ui/crosshair.png")?.decode()?;
     let crosshair_alpha = crosshair_image.to_luma8();
     let (crosshair_width, crosshair_height) = crosshair_image.dimensions();
 
@@ -863,14 +861,14 @@ impl<'a> App<'a> {
     });
 
     queue.write_texture(
-      ImageCopyTexture {
+      TexelCopyTextureInfo {
         texture: &crosshair_texture,
         mip_level: 0,
         origin: Origin3d::ZERO,
         aspect: TextureAspect::All,
       },
       &crosshair_alpha,
-      ImageDataLayout {
+      TexelCopyBufferLayout {
         offset: 0,
         bytes_per_row: Some(crosshair_size.width),
         rows_per_image: Some(crosshair_size.height),
@@ -953,13 +951,13 @@ impl<'a> App<'a> {
       layout: Some(&crosshair_layout),
       vertex: VertexState {
         module: &crosshair_shader,
-        entry_point: "vs_main",
+        entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[],
       },
       fragment: Some(FragmentState {
         module: &crosshair_shader,
-        entry_point: "fs_main",
+        entry_point: Some("fs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
           format: config.format,
@@ -1138,6 +1136,7 @@ impl<'a> App<'a> {
         label: Some("Main Render Pass"),
         color_attachments: &[Some(RenderPassColorAttachment {
           view: &self.screen.render_view,
+          depth_slice: None,
           resolve_target: None,
           ops: Operations {
             load: LoadOp::Clear(Color::BLACK),
@@ -1172,6 +1171,7 @@ impl<'a> App<'a> {
         label: Some("UI Render Pass"),
         color_attachments: &[Some(RenderPassColorAttachment {
           view: &view,
+          depth_slice: None,
           resolve_target: None,
           ops: Operations {
             load: LoadOp::Clear(Color::TRANSPARENT),
