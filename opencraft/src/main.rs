@@ -9,18 +9,18 @@ use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{self, X_AXIS, Z_AXIS};
-use anyhow::{anyhow, Result};
-use image::io::Reader;
+use anyhow::{Result, anyhow};
 use image::GenericImageView;
+use image::io::Reader;
 use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-  include_wgsl, vertex_attr_array, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry,
-  BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType,
-  BlendState, Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
+  Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+  BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
+  Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
   ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
   DepthStencilState, Device, Extent3d, Face, Features, FragmentState, FrontFace, ImageCopyTexture,
   ImageDataLayout, Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MultisampleState,
@@ -31,7 +31,7 @@ use wgpu::{
   SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration,
   TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
   TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexBufferLayout,
-  VertexState, VertexStepMode,
+  VertexState, VertexStepMode, include_wgsl, vertex_attr_array,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent};
