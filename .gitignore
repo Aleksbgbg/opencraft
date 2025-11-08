@@ -1,2 +1,5 @@
 # Rust build
 target/
+
+# nix-direnv
+.direnv/
