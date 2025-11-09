@@ -23,13 +23,31 @@
       };
       lib = nixpkgs.lib;
     in {
-      devShells.default = pkgs.mkShell {
+      devShells.default = pkgs.mkShell rec {
         packages = with pkgs; [
           # Rust
           (rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete))
           cargo-watch # Continuous rebuild
           cargo-edit # Package updates
         ];
+
+        buildInputs = with pkgs; [
+          # WINIT_UNIX_BACKEND=x11
+          libxkbcommon
+          xorg.libX11
+          xorg.libXcursor
+          xorg.libXi
+
+          # WINIT_UNIX_BACKEND=wayland
+          # wayland
+
+          # WGPU_BACKEND=gl
+          # libGL
+
+          # WGPU_BACKEND=vulkan
+          vulkan-loader
+        ];
+        LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
       };
     });
 }
