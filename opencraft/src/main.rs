@@ -22,10 +22,10 @@ use wgpu::{
   BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
   Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
   ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
-  DepthStencilState, Device, ExperimentalFeatures, Extent3d, Face, Features, FragmentState,
-  FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MultisampleState,
-  Operations, Origin3d, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode,
-  PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
+  DepthStencilState, Device, DeviceDescriptor, ExperimentalFeatures, Extent3d, Face, Features,
+  FragmentState, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints,
+  MultisampleState, Operations, Origin3d, PipelineCompilationOptions, PipelineLayoutDescriptor,
+  PolygonMode, PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
   RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
   RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
   SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration,
@@ -536,7 +536,7 @@ impl Game {
       .await?;
 
     let (device, queue) = adapter
-      .request_device(&wgpu::DeviceDescriptor {
+      .request_device(&DeviceDescriptor {
         required_features: Features::empty(),
         required_limits: Limits::default(),
         label: None,
