@@ -13,6 +13,7 @@ use anyhow::Result;
 use image::{GenericImageView, ImageReader};
 use lazy_static::lazy_static;
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
@@ -33,39 +34,79 @@ use wgpu::{
   TextureViewDimension, Trace, VertexBufferLayout, VertexState, VertexStepMode, include_wgsl,
   vertex_attr_array,
 };
+use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent};
-use winit::event_loop::EventLoop;
+use winit::event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::window::{CursorGrabMode, Window, WindowBuilder};
+use winit::window::{CursorGrabMode, Window, WindowId};
 use zerocopy::{Immutable, IntoBytes};
 
 fn main() -> Result<()> {
-  pollster::block_on(start())?;
+  start()?;
   Ok(())
 }
 
-async fn start() -> Result<()> {
+fn start() -> Result<()> {
   env_logger::init();
 
   let event_loop = EventLoop::new()?;
-  let window = WindowBuilder::new()
-    .with_title("Opencraft")
-    .build(&event_loop)?;
-  let _ = window.set_cursor_grab(CursorGrabMode::Confined);
-  window.set_cursor_visible(false);
 
-  let mut game = Game::new(&window).await?;
+  let mut app = App::default();
+  event_loop.run_app(&mut app)?;
 
-  event_loop.run(|event, target| match event {
-    Event::WindowEvent { event, .. } => match event {
+  Ok(())
+}
+
+struct AppState {
+  window: Arc<Window>,
+  game: Game,
+}
+
+#[derive(Default)]
+struct App {
+  state: Option<AppState>,
+}
+
+impl App {
+  fn unwrap(&mut self) -> (&Window, &mut Game) {
+    let state = self.state.as_mut().unwrap();
+    (&state.window, &mut state.game)
+  }
+}
+
+impl ApplicationHandler for App {
+  fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    let window = Arc::new(
+      event_loop
+        .create_window(Window::default_attributes().with_title("Opencraft"))
+        .expect("could not create window"),
+    );
+    let _ = window.set_cursor_grab(CursorGrabMode::Confined);
+    window.set_cursor_visible(false);
+
+    let game =
+      pollster::block_on(Game::new(Arc::clone(&window))).expect("could not initialise game");
+
+    self.state = Some(AppState { window, game });
+  }
+
+  fn window_event(
+    &mut self,
+    event_loop: &ActiveEventLoop,
+    _window_id: WindowId,
+    event: WindowEvent,
+  ) {
+    let (window, game) = self.unwrap();
+
+    match event {
       WindowEvent::CloseRequested => {
-        target.exit();
+        event_loop.exit();
       }
       WindowEvent::RedrawRequested => {
         if let Err(err) = game.compose() {
           eprintln!("Error during composition loop: {:?}", err);
-          target.exit();
+          event_loop.exit();
         }
       }
       WindowEvent::Resized(physical_size) => {
@@ -85,7 +126,7 @@ async fn start() -> Result<()> {
         ElementState::Pressed => {
           if let PhysicalKey::Code(code) = physical_key {
             match code {
-              KeyCode::Escape => target.exit(),
+              KeyCode::Escape => event_loop.exit(),
               code => game.press(code),
             }
           }
@@ -97,20 +138,31 @@ async fn start() -> Result<()> {
         }
       },
       _ => {}
-    },
-    Event::DeviceEvent {
-      event: DeviceEvent::MouseMotion { delta: (x, y) },
-      ..
-    } => {
-      game.motion(x as f32, y as f32);
-    }
-    Event::AboutToWait => {
-      window.request_redraw();
-    }
-    _ => {}
-  })?;
+    };
+  }
 
-  Ok(())
+  fn device_event(
+    &mut self,
+    _event_loop: &ActiveEventLoop,
+    _device_id: DeviceId,
+    event: DeviceEvent,
+  ) {
+    let (_, game) = self.unwrap();
+
+    #[allow(clippy::single_match)]
+    match event {
+      DeviceEvent::MouseMotion { delta: (x, y) } => {
+        game.motion(x as f32, y as f32);
+      }
+      _ => {}
+    }
+  }
+
+  fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    let (window, _) = self.unwrap();
+
+    window.request_redraw();
+  }
 }
 
 lazy_static! {
@@ -434,13 +486,13 @@ impl ScreenSpaceResources {
   }
 }
 
-struct Game<'a> {
+struct Game {
   last: Instant,
 
   camera: Camera,
   keys_down: HashSet<KeyCode>,
 
-  surface: Surface<'a>,
+  surface: Surface<'static>,
   device: Device,
   queue: Queue,
   config: SurfaceConfiguration,
@@ -468,13 +520,13 @@ struct Game<'a> {
   crosshair_pipeline: RenderPipeline,
 }
 
-impl<'a> Game<'a> {
-  async fn new(window: &'a Window) -> Result<Self> {
+impl Game {
+  async fn new(window: Arc<Window>) -> Result<Self> {
     let instance = Instance::new(&InstanceDescriptor {
       backends: Backends::all(),
       ..Default::default()
     });
-    let surface = instance.create_surface(window)?;
+    let surface = instance.create_surface(Arc::clone(&window))?;
     let adapter = instance
       .request_adapter(&RequestAdapterOptions {
         power_preference: PowerPreference::default(),
