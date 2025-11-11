@@ -15,6 +15,7 @@ format:
   image: rust:latest
   needs: []
   script:
+    - rustup component add rustfmt
     - cargo fmt --check
 
 clippy:
@@ -22,6 +23,7 @@ clippy:
   image: rust:latest
   needs: []
   script:
+    - rustup component add clippy
     - cargo clippy -- -Dwarnings
 
 test:
