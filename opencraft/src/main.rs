@@ -3,12 +3,14 @@
 
 mod camera;
 mod core;
+mod platform;
 
 use crate::camera::{Camera, Direction};
 use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{self, X_AXIS, Z_AXIS};
+use crate::platform::error;
 use anyhow::Result;
 use image::{GenericImageView, ImageReader};
 use lazy_static::lazy_static;
@@ -48,7 +50,7 @@ fn main() -> Result<()> {
 }
 
 fn start() -> Result<()> {
-  env_logger::init();
+  platform::init_logging();
 
   let event_loop = EventLoop::new()?;
 
@@ -105,7 +107,7 @@ impl ApplicationHandler for App {
       }
       WindowEvent::RedrawRequested => {
         if let Err(err) = game.compose() {
-          eprintln!("Error during composition loop: {:?}", err);
+          error!("Error during composition loop: {:?}", err);
           event_loop.exit();
         }
       }
