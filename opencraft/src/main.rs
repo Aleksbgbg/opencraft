@@ -46,12 +46,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 use zerocopy::{Immutable, IntoBytes};
 
-fn main() -> Result<()> {
-  start()?;
-  Ok(())
-}
-
-fn start() -> Result<()> {
+pub fn start() -> Result<()> {
   platform::init_logging();
 
   let event_loop = EventLoop::with_user_event().build()?;
