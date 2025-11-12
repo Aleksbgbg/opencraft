@@ -1,5 +1,6 @@
-use std::thread;
+use anyhow::Result;
 use std::time::Duration;
+use std::{fs, thread};
 use winit::window::WindowAttributes;
 
 #[rustfmt::skip]
@@ -33,4 +34,8 @@ where
 // blocking sleep is not a problem.
 pub async fn sleep(duration: Duration) {
   thread::sleep(duration)
+}
+
+pub async fn read_resource(path: &str) -> Result<Vec<u8>> {
+  Ok(fs::read(path)?)
 }

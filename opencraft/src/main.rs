@@ -12,9 +12,11 @@ use crate::core::math::vec3::Vec3;
 use crate::core::math::{self, X_AXIS, Z_AXIS};
 use crate::platform::error;
 use anyhow::Result;
-use image::{GenericImageView, ImageReader};
+use image::codecs::png::PngDecoder;
+use image::{DynamicImage, GenericImageView};
 use lazy_static::lazy_static;
 use std::collections::HashSet;
+use std::io::Cursor;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{iter, mem};
@@ -630,7 +632,7 @@ impl Game {
 
     let default_sampler = device.create_sampler(&SamplerDescriptor::default());
 
-    let grass_image = ImageReader::open("assets/textures/block/grass.png")?.decode()?;
+    let grass_image = decode_png("assets/textures/block/grass.png").await?;
     let grass_rgba = grass_image.to_rgba8();
     let (grass_width, grass_height) = grass_image.dimensions();
 
@@ -953,7 +955,7 @@ impl Game {
       cache: None,
     });
 
-    let crosshair_image = ImageReader::open("assets/textures/ui/crosshair.png")?.decode()?;
+    let crosshair_image = decode_png("assets/textures/ui/crosshair.png").await?;
     let crosshair_alpha = crosshair_image.to_luma8();
     let (crosshair_width, crosshair_height) = crosshair_image.dimensions();
 
@@ -1311,6 +1313,13 @@ impl Game {
 
     Ok(())
   }
+}
+
+async fn decode_png(path: &str) -> Result<DynamicImage> {
+  let image_data = Cursor::new(platform::read_resource(path).await?);
+  let decoder = PngDecoder::new(image_data)?;
+
+  Ok(DynamicImage::from_decoder(decoder)?)
 }
 
 fn is_valid_window(window: &Window) -> bool {
