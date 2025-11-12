@@ -15,6 +15,8 @@ mod log_macros {
 
 pub use log_macros::*;
 
+pub type Instant = std::time::Instant;
+
 pub fn init_logging() {
   env_logger::init();
 }

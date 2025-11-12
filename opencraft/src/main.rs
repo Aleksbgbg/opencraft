@@ -10,7 +10,7 @@ use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{self, X_AXIS, Z_AXIS};
-use crate::platform::error;
+use crate::platform::{Instant, error};
 use anyhow::Result;
 use image::codecs::png::PngDecoder;
 use image::{DynamicImage, GenericImageView};
@@ -18,7 +18,7 @@ use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::io::Cursor;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
