@@ -55,7 +55,7 @@ async fn start() -> Result<()> {
   let _ = window.set_cursor_grab(CursorGrabMode::Confined);
   window.set_cursor_visible(false);
 
-  let mut app = App::new(&window).await?;
+  let mut game = Game::new(&window).await?;
 
   event_loop.run(|event, target| match event {
     Event::WindowEvent { event, .. } => match event {
@@ -63,16 +63,16 @@ async fn start() -> Result<()> {
         target.exit();
       }
       WindowEvent::RedrawRequested => {
-        if let Err(err) = app.compose() {
+        if let Err(err) = game.compose() {
           eprintln!("Error during composition loop: {:?}", err);
           target.exit();
         }
       }
       WindowEvent::Resized(physical_size) => {
-        app.resize(physical_size);
+        game.resize(physical_size);
       }
       WindowEvent::ScaleFactorChanged { .. } => {
-        app.resize(window.inner_size());
+        game.resize(window.inner_size());
       }
       WindowEvent::KeyboardInput {
         event: KeyEvent {
@@ -86,13 +86,13 @@ async fn start() -> Result<()> {
           if let PhysicalKey::Code(code) = physical_key {
             match code {
               KeyCode::Escape => target.exit(),
-              code => app.press(code),
+              code => game.press(code),
             }
           }
         }
         ElementState::Released => {
           if let PhysicalKey::Code(code) = physical_key {
-            app.release(code)
+            game.release(code)
           }
         }
       },
@@ -102,7 +102,7 @@ async fn start() -> Result<()> {
       event: DeviceEvent::MouseMotion { delta: (x, y) },
       ..
     } => {
-      app.motion(x as f32, y as f32);
+      game.motion(x as f32, y as f32);
     }
     Event::AboutToWait => {
       window.request_redraw();
@@ -434,7 +434,7 @@ impl ScreenSpaceResources {
   }
 }
 
-struct App<'a> {
+struct Game<'a> {
   last: Instant,
 
   camera: Camera,
@@ -468,7 +468,7 @@ struct App<'a> {
   crosshair_pipeline: RenderPipeline,
 }
 
-impl<'a> App<'a> {
+impl<'a> Game<'a> {
   async fn new(window: &'a Window) -> Result<Self> {
     let instance = Instance::new(&InstanceDescriptor {
       backends: Backends::all(),
