@@ -538,7 +538,7 @@ impl Game {
     let (device, queue) = adapter
       .request_device(&DeviceDescriptor {
         required_features: Features::empty(),
-        required_limits: Limits::default(),
+        required_limits: Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
         label: None,
         experimental_features: ExperimentalFeatures::disabled(),
         memory_hints: MemoryHints::Performance,
