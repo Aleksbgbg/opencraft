@@ -1,5 +1,10 @@
 # Rust build
 target/
 
+# WASM
+**/pkg/*
+!**/pkg/index.html
+!**/pkg/assets
+
 # nix-direnv
 .direnv/

@@ -26,9 +26,15 @@
       devShells.default = pkgs.mkShell rec {
         packages = with pkgs; [
           # Rust
-          (rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete))
+          (rust-bin.selectLatestNightlyWith (toolchain:
+            toolchain.complete.override {
+              targets = ["wasm32-unknown-unknown"];
+            }))
           cargo-watch # Continuous rebuild
           cargo-edit # Package updates
+
+          # WASM
+          wasm-pack
         ];
 
         buildInputs = with pkgs; [

@@ -10,7 +10,7 @@ path = "src/platform/desktop/entry.rs"
 [lib]
 name = "lopencraft"
 path = "src/main.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = { version = "1.0.100", default-features = false, features = ["backtrace", "std"] }
@@ -22,6 +22,18 @@ pollster = { version = "0.4.0", default-features = false }
 wgpu = { version = "27.0.1", default-features = false, features = ["wgsl", "vulkan"] }
 winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "x11"] }
 zerocopy = { version = "0.8.27", default-features = false, features = ["derive"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = { version = "0.1.7", default-features = false }
+console_log = { version = "1.0.0", default-features = false }
+gloo-timers = { version = "0.3.0", default-features = false, features = ["futures"] }
+log = { version = "0.4.28", default-features = false }
+reqwest = { version = "0.12.24", default-features = false }
+wasm-bindgen = { version = "0.2.105", default-features = false }
+wasm-bindgen-futures = { version = "0.4.55", default-features = false }
+web-sys = { version = "0.3.82", default-features = false, features = ["Location", "Window"] }
+web-time = { version = "1.1.0", default-features = false }
+wgpu = { version = "27.0.1", default-features = false, features = ["webgl"] }
 
 [build-dependencies]
 omnicopy_to_output = { version = "0.3.0", default-features = false }
