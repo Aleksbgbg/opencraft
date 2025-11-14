@@ -39,7 +39,7 @@ use wgpu::{
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopClosed, EventLoopProxy};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 use zerocopy::{Immutable, IntoBytes};
@@ -52,9 +52,9 @@ fn main() -> Result<()> {
 fn start() -> Result<()> {
   platform::init_logging();
 
-  let event_loop = EventLoop::new()?;
+  let event_loop = EventLoop::with_user_event().build()?;
 
-  let mut app = App::default();
+  let mut app = App::new(event_loop.create_proxy());
   event_loop.run_app(&mut app)?;
 
   Ok(())
@@ -65,32 +65,79 @@ struct AppState {
   game: Game,
 }
 
-#[derive(Default)]
+enum AppEvent {
+  SpinWaitWindowInit(Arc<Window>),
+  Init(Box<AppState>),
+}
+
 struct App {
   state: Option<AppState>,
+  event_loop_proxy: EventLoopProxy<AppEvent>,
 }
 
 impl App {
+  fn new(event_loop_proxy: EventLoopProxy<AppEvent>) -> Self {
+    App {
+      state: None,
+      event_loop_proxy,
+    }
+  }
+
+  fn is_ready(&self) -> bool {
+    self.state.is_some()
+  }
+
   fn unwrap(&mut self) -> (&Window, &mut Game) {
     let state = self.state.as_mut().unwrap();
     (&state.window, &mut state.game)
   }
 }
 
-impl ApplicationHandler for App {
+impl ApplicationHandler<AppEvent> for App {
   fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    let window_attributes =
+      platform::init_window_attributes(Window::default_attributes().with_title("Opencraft"));
+
     let window = Arc::new(
       event_loop
-        .create_window(Window::default_attributes().with_title("Opencraft"))
+        .create_window(window_attributes)
         .expect("could not create window"),
     );
     let _ = window.set_cursor_grab(CursorGrabMode::Confined);
     window.set_cursor_visible(false);
 
-    let game =
-      pollster::block_on(Game::new(Arc::clone(&window))).expect("could not initialise game");
+    verify_send_event(
+      self
+        .event_loop_proxy
+        .send_event(AppEvent::SpinWaitWindowInit(window)),
+    );
+  }
 
-    self.state = Some(AppState { window, game });
+  fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: AppEvent) {
+    match event {
+      AppEvent::SpinWaitWindowInit(window) => {
+        let event_loop_proxy = self.event_loop_proxy.clone();
+
+        if is_valid_window(&window) {
+          platform::run_future(async move {
+            let game = Game::new(Arc::clone(&window))
+              .await
+              .expect("could not initialise game");
+
+            verify_send_event(
+              event_loop_proxy.send_event(AppEvent::Init(Box::new(AppState { window, game }))),
+            );
+          });
+        } else {
+          platform::run_future(async move {
+            platform::sleep(Duration::from_millis(100)).await;
+
+            verify_send_event(event_loop_proxy.send_event(AppEvent::SpinWaitWindowInit(window)));
+          });
+        }
+      }
+      AppEvent::Init(app_state) => self.state = Some(*app_state),
+    };
   }
 
   fn window_event(
@@ -99,6 +146,10 @@ impl ApplicationHandler for App {
     _window_id: WindowId,
     event: WindowEvent,
   ) {
+    if !self.is_ready() {
+      return;
+    }
+
     let (window, game) = self.unwrap();
 
     match event {
@@ -149,6 +200,10 @@ impl ApplicationHandler for App {
     _device_id: DeviceId,
     event: DeviceEvent,
   ) {
+    if !self.is_ready() {
+      return;
+    }
+
     let (_, game) = self.unwrap();
 
     #[allow(clippy::single_match)]
@@ -161,6 +216,10 @@ impl ApplicationHandler for App {
   }
 
   fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    if !self.is_ready() {
+      return;
+    }
+
     let (window, _) = self.unwrap();
 
     window.request_redraw();
@@ -1251,5 +1310,15 @@ impl Game {
     output.present();
 
     Ok(())
+  }
+}
+
+fn is_valid_window(window: &Window) -> bool {
+  (window.inner_size().width > 0) && (window.inner_size().height > 0)
+}
+
+fn verify_send_event(result: Result<(), EventLoopClosed<AppEvent>>) {
+  if result.is_err() {
+    panic!("event loop closed");
   }
 }
