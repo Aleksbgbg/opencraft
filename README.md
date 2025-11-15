@@ -35,6 +35,24 @@ Run the project with:
 cargo run
 ```
 
+### Browser (WebAssembly)
+
+To build and run the project in the browser, install
+[wasm-pack](https://github.com/drager/wasm-pack) and build via the following
+command:
+```
+wasm-pack build opencraft --target web --dev
+```
+
+Then use your favourite web server to serve the generated static files. For
+example, you can use Python's `http.server` module:
+```
+python3 -m http.server 8080 --directory opencraft/pkg
+```
+
+Finally, navigate to `http://localhost:8080` in your browser to see the game
+run!
+
 ## Roadmap
 
 Opencraft is currently in its very early stages. See #1 for a list of features
@@ -44,7 +62,7 @@ that we are working on and need help with.
 
 We use the [wgpu](https://github.com/gfx-rs/wgpu) crate to render our game,
 which means Opencraft can be configured to run on any GPU API on several
-platforms, and even ported to run in the browser.
+platforms, and even runs in the browser.
 
 Most of our game engine math is implemented by hand. We use
 [rotors](https://jacquesheunis.com/post/rotors) instead of quaternions for
