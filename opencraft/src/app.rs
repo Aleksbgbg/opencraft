@@ -5,9 +5,11 @@ mod camera;
 mod core;
 mod game;
 mod platform;
+mod windowing;
 
 use crate::game::Game;
 use crate::platform::error;
+use crate::windowing::fullscreen;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Duration;
@@ -146,10 +148,10 @@ impl ApplicationHandler<AppEvent> for App {
       } => match state {
         ElementState::Pressed => {
           if let PhysicalKey::Code(code) = physical_key {
-            #[allow(clippy::single_match)]
             match code {
               #[cfg(not(target_family = "wasm"))]
               KeyCode::Escape => event_loop.exit(),
+              KeyCode::F11 => fullscreen::toggle(window),
               _ => {}
             }
 
