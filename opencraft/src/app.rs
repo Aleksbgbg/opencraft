@@ -146,15 +146,18 @@ impl ApplicationHandler<AppEvent> for App {
       } => match state {
         ElementState::Pressed => {
           if let PhysicalKey::Code(code) = physical_key {
+            #[allow(clippy::single_match)]
             match code {
               KeyCode::Escape => event_loop.exit(),
-              code => game.press(code),
+              _ => {}
             }
+
+            game.press(code);
           }
         }
         ElementState::Released => {
           if let PhysicalKey::Code(code) = physical_key {
-            game.release(code)
+            game.release(code);
           }
         }
       },
