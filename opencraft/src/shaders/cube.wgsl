@@ -1,7 +1,8 @@
 @group(0) @binding(0)
-var<uniform> transform: mat4x4<f32>;
+var<uniform> transform: array<mat4x4<f32>, 256>;
 
 struct VertexInput {
+  @builtin(instance_index) instance: u32,
   @location(0) position: vec3<f32>,
   @location(1) texture_coordinate: vec2<f32>,
 }
@@ -14,7 +15,7 @@ struct VertexOutput {
 @vertex
 fn vs_main(vertex: VertexInput) -> VertexOutput {
   var out: VertexOutput;
-  out.position = transform * vec4<f32>(vertex.position, 1.0);
+  out.position = transform[vertex.instance] * vec4<f32>(vertex.position, 1.0);
   out.texture_coordinate = vertex.texture_coordinate;
   return out;
 }

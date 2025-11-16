@@ -1,5 +1,5 @@
 use crate::camera::{Camera, Direction};
-use crate::core::math::aligned_box3::AlignedBox3;
+use crate::core::math::aligned_box3::{AlignedBox3, BoxFace};
 use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::segment3::Segment3;
@@ -38,6 +38,8 @@ use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 use zerocopy::{Immutable, IntoBytes};
+
+const BLOCK_LIMIT: usize = 256;
 
 lazy_static! {
   static ref FOV: Angle = Angle::degrees(75.0);
@@ -362,7 +364,9 @@ pub struct Game {
   keys_down: HashSet<KeyCode>,
   mouse_buttons_released: HashSet<MouseButton>,
 
-  intersects_cube: bool,
+  blocks: Vec<Vec3>,
+
+  target_cube_index_face: Option<(usize, BoxFace)>,
 
   surface: Surface<'static>,
   device: Device,
@@ -521,7 +525,7 @@ impl Game {
 
     let transform_buffer = device.create_buffer(&BufferDescriptor {
       label: Some("Model -> Clip Space Transform Buffer"),
-      size: mem::size_of::<Mat4x4>() as BufferAddress,
+      size: (mem::size_of::<Mat4x4>() * BLOCK_LIMIT) as BufferAddress,
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
       mapped_at_creation: false,
     });
@@ -996,7 +1000,8 @@ impl Game {
       camera: Camera::new(),
       keys_down: HashSet::new(),
       mouse_buttons_released: HashSet::new(),
-      intersects_cube: false,
+      blocks: Vec::from([CUBE_TRANSLATE]),
+      target_cube_index_face: None,
       surface,
       device,
       queue,
@@ -1116,13 +1121,34 @@ impl Game {
         .translate(CAMERA_MOVEMENT_SPEED * delta_secs * camera_movement.norm());
     }
 
-    self.intersects_cube = AlignedBox3::cube(CUBE_TRANSLATE, CUBE_HALF)
-      .intersect_with(&Segment3::start_direction_len(
-        self.camera.position(),
-        self.camera.forward(),
-        5.0,
-      ))
-      .is_some();
+    if let Some((index, face)) = self.target_cube_index_face {
+      if self.mouse_buttons_released.contains(&MouseButton::Left) {
+        self.blocks.swap_remove(index);
+      } else if self.mouse_buttons_released.contains(&MouseButton::Right)
+        && (self.blocks.len() < BLOCK_LIMIT)
+      {
+        let target_block = self.blocks.get(index).unwrap();
+        let next_block = *target_block + (CUBE_SIZE * face.normal());
+
+        self.blocks.push(next_block);
+      }
+    }
+
+    let position = self.camera.position();
+    let reach = Segment3::start_direction_len(position, self.camera.forward(), 5.0);
+
+    self.target_cube_index_face = None;
+    let mut min_dist = f32::MAX;
+    for (index, block) in self.blocks.iter().enumerate() {
+      if let Some(face) = AlignedBox3::cube(*block, CUBE_HALF).intersect_with(&reach) {
+        let dist = (position - *block).len_sq();
+
+        if dist < min_dist {
+          self.target_cube_index_face = Some((index, face));
+          min_dist = dist;
+        }
+      }
+    }
 
     self.mouse_buttons_released.clear();
   }
@@ -1141,20 +1167,22 @@ impl Game {
         } else {
           Direction::Forward
         });
-    let transform = &world_to_screen_space * &mat4::translate(CUBE_TRANSLATE);
-    let skybox_transform = &world_to_screen_space * &mat4::translate(self.camera.position());
 
+    let skybox_transform = &world_to_screen_space * &mat4::translate(self.camera.position());
     self.queue.write_buffer(
       &self.skybox_transform_buffer,
       0,
       skybox_transform.as_bytes(),
     );
+
+    let transforms: Vec<Mat4x4> = self
+      .blocks
+      .iter()
+      .map(|block| &world_to_screen_space * &mat4::translate(*block))
+      .collect();
     self
       .queue
-      .write_buffer(&self.transform_buffer, 0, transform.as_bytes());
-    self
-      .queue
-      .write_buffer(&self.outline_transform_buffer, 0, transform.as_bytes());
+      .write_buffer(&self.transform_buffer, 0, transforms.as_bytes());
 
     let mut encoder = self
       .device
@@ -1193,9 +1221,15 @@ impl Game {
       render_pass.set_pipeline(&self.pipeline);
       render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
-      render_pass.draw(0..VERTICES.len() as u32, 0..1);
+      render_pass.draw(0..VERTICES.len() as u32, 0..self.blocks.len() as u32);
 
-      if self.intersects_cube {
+      if let Some((index, _)) = self.target_cube_index_face {
+        self.queue.write_buffer(
+          &self.outline_transform_buffer,
+          0,
+          transforms.get(index).unwrap().as_bytes(),
+        );
+
         render_pass.set_pipeline(&self.outline_pipeline);
         render_pass.set_bind_group(0, &self.outline_transform_bind_group, &[]);
         render_pass.draw(0..VERTICES.len() as u32, 0..1);
