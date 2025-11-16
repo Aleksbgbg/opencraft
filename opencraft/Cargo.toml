@@ -23,7 +23,7 @@ wgpu = { version = "27.0.1", default-features = false, features = ["wgsl", "vulk
 winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "x11"] }
 zerocopy = { version = "0.8.27", default-features = false, features = ["derive"] }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(target_family = "wasm")'.dependencies]
 console_error_panic_hook = { version = "0.1.7", default-features = false }
 console_log = { version = "1.0.0", default-features = false }
 gloo-timers = { version = "0.3.0", default-features = false, features = ["futures"] }
