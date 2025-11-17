@@ -1,6 +1,8 @@
 use crate::camera::{Camera, Direction};
+use crate::core::math::aligned_box3::AlignedBox3;
 use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
+use crate::core::math::segment3::Segment3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{self, X_AXIS, Y_AXIS, Z_AXIS};
 use crate::platform::{Instant, ResourceReader};
@@ -357,6 +359,8 @@ pub struct Game {
   camera: Camera,
   keys_down: HashSet<KeyCode>,
 
+  intersects_cube: bool,
+
   surface: Surface<'static>,
   device: Device,
   queue: Queue,
@@ -370,6 +374,10 @@ pub struct Game {
   pipeline: RenderPipeline,
   vertex_buffer: Buffer,
   grass_bind_group: BindGroup,
+
+  outline_transform_buffer: Buffer,
+  outline_transform_bind_group: BindGroup,
+  outline_pipeline: RenderPipeline,
 
   skybox_transform_buffer: Buffer,
   skybox_transform_bind_group: BindGroup,
@@ -594,6 +602,89 @@ impl Game {
       label: Some("Vertex Buffer"),
       contents: VERTICES.as_bytes(),
       usage: BufferUsages::VERTEX,
+    });
+
+    let outline_transform_buffer = device.create_buffer(&BufferDescriptor {
+      label: Some("Model -> Clip Space Transform Buffer"),
+      size: mem::size_of::<Mat4x4>() as BufferAddress,
+      usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+      mapped_at_creation: false,
+    });
+    let outline_transform_buffer_layout =
+      device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Transform Buffer Bind Group Layout"),
+        entries: &[BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::VERTEX,
+          ty: BindingType::Buffer {
+            ty: BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+          },
+          count: None,
+        }],
+      });
+    let outline_transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Transform Buffer Bind Group"),
+      layout: &outline_transform_buffer_layout,
+      entries: &[BindGroupEntry {
+        binding: 0,
+        resource: outline_transform_buffer.as_entire_binding(),
+      }],
+    });
+
+    let outline_shader = device.create_shader_module(include_wgsl!("shaders/cube_outline.wgsl"));
+    let outline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+      label: Some("Render Pipeline Layout"),
+      bind_group_layouts: &[&outline_transform_buffer_layout],
+      push_constant_ranges: &[],
+    });
+    let outline_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+      label: Some("Render Pipeline"),
+      layout: Some(&outline_layout),
+      vertex: VertexState {
+        module: &outline_shader,
+        entry_point: Some("vs_main"),
+        compilation_options: PipelineCompilationOptions::default(),
+        buffers: &[VertexBufferLayout {
+          array_stride: mem::size_of::<Vertex>() as BufferAddress,
+          step_mode: VertexStepMode::Vertex,
+          attributes: &vertex_attr_array![0 => Float32x3],
+        }],
+      },
+      fragment: Some(FragmentState {
+        module: &outline_shader,
+        entry_point: Some("fs_main"),
+        compilation_options: PipelineCompilationOptions::default(),
+        targets: &[Some(ColorTargetState {
+          format: config.format,
+          blend: Some(BlendState::REPLACE),
+          write_mask: ColorWrites::ALL,
+        })],
+      }),
+      primitive: PrimitiveState {
+        topology: PrimitiveTopology::TriangleList,
+        strip_index_format: None,
+        front_face: FrontFace::Ccw,
+        cull_mode: Some(Face::Back),
+        unclipped_depth: false,
+        polygon_mode: PolygonMode::Fill,
+        conservative: false,
+      },
+      depth_stencil: Some(DepthStencilState {
+        format: DEPTH_FORMAT,
+        depth_write_enabled: true,
+        depth_compare: CompareFunction::Less,
+        stencil: StencilState::default(),
+        bias: DepthBiasState::default(),
+      }),
+      multisample: MultisampleState {
+        count: 1,
+        mask: !0,
+        alpha_to_coverage_enabled: false,
+      },
+      multiview: None,
+      cache: None,
     });
 
     let skybox_transform_buffer = device.create_buffer(&BufferDescriptor {
@@ -901,6 +992,7 @@ impl Game {
       last: Instant::now(),
       camera: Camera::new(),
       keys_down: HashSet::new(),
+      intersects_cube: false,
       surface,
       device,
       queue,
@@ -912,6 +1004,9 @@ impl Game {
       pipeline,
       vertex_buffer,
       grass_bind_group,
+      outline_transform_buffer,
+      outline_transform_bind_group,
+      outline_pipeline,
       skybox_transform_buffer,
       skybox_transform_bind_group,
       skybox_pipeline,
@@ -1012,6 +1107,14 @@ impl Game {
         .camera
         .translate(CAMERA_MOVEMENT_SPEED * delta_secs * camera_movement.norm());
     }
+
+    self.intersects_cube = AlignedBox3::cube(CUBE_TRANSLATE, CUBE_HALF)
+      .intersect_with(&Segment3::start_direction_len(
+        self.camera.position(),
+        self.camera.forward(),
+        5.0,
+      ))
+      .is_some();
   }
 
   fn render(&self) -> Result<()> {
@@ -1039,6 +1142,9 @@ impl Game {
     self
       .queue
       .write_buffer(&self.transform_buffer, 0, transform.as_bytes());
+    self
+      .queue
+      .write_buffer(&self.outline_transform_buffer, 0, transform.as_bytes());
 
     let mut encoder = self
       .device
@@ -1078,6 +1184,12 @@ impl Game {
       render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
       render_pass.draw(0..VERTICES.len() as u32, 0..1);
+
+      if self.intersects_cube {
+        render_pass.set_pipeline(&self.outline_pipeline);
+        render_pass.set_bind_group(0, &self.outline_transform_bind_group, &[]);
+        render_pass.draw(0..VERTICES.len() as u32, 0..1);
+      }
     }
     {
       let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {

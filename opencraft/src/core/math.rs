@@ -1,7 +1,9 @@
+pub mod aligned_box3;
 pub mod angle;
 pub mod bivec3;
 pub mod mat4;
 pub mod rotor3;
+pub mod segment3;
 pub mod vec3;
 
 use crate::core::math::bivec3::BiVec3;
@@ -22,6 +24,15 @@ pub fn nearly_eq(lhs: f32, rhs: f32) -> bool {
 
 pub fn nearly_eq_tolerance(lhs: f32, rhs: f32, tolerance_multiplier: f32) -> bool {
   (lhs - rhs).abs() <= (tolerance_multiplier * f32::EPSILON)
+}
+
+/// Returns true if value ∈ [min, max].
+pub fn in_range(value: f32, min: f32, max: f32) -> bool {
+  (min <= value) && (value <= max)
+}
+
+pub fn min_max(a: f32, b: f32) -> (f32, f32) {
+  (a.min(b), a.max(b))
 }
 
 pub fn align(value: usize, alignment: usize) -> usize {

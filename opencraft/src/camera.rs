@@ -2,7 +2,7 @@ use crate::core::math::angle::{Angle, HALF_ROTATION, QUARTER_ROTATION};
 use crate::core::math::mat4::{self, Mat4x4};
 use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
-use crate::core::math::{YZ_PLANE, ZX_PLANE};
+use crate::core::math::{YZ_PLANE, Z_AXIS, ZX_PLANE};
 
 pub enum Direction {
   Forward,
@@ -35,6 +35,10 @@ impl Camera {
 
   fn rotor(&self) -> Rotor3 {
     self.rotor_yaw() * self.rotor_pitch()
+  }
+
+  pub fn forward(&self) -> Vec3 {
+    self.rotor().rotate(Z_AXIS)
   }
 
   pub fn translate(&mut self, offset: Vec3) {
