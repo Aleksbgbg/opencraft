@@ -9,7 +9,7 @@ path = "src/platform/desktop/entry.rs"
 
 [lib]
 name = "lopencraft"
-path = "src/main.rs"
+path = "src/game.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
