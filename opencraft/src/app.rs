@@ -148,6 +148,7 @@ impl ApplicationHandler<AppEvent> for App {
           if let PhysicalKey::Code(code) = physical_key {
             #[allow(clippy::single_match)]
             match code {
+              #[cfg(not(target_family = "wasm"))]
               KeyCode::Escape => event_loop.exit(),
               _ => {}
             }
