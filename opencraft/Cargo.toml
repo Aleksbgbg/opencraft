@@ -34,6 +34,3 @@ wasm-bindgen-futures = { version = "0.4.55", default-features = false }
 web-sys = { version = "0.3.82", default-features = false, features = ["Location", "Window"] }
 web-time = { version = "1.1.0", default-features = false }
 wgpu = { version = "27.0.1", default-features = false, features = ["webgl"] }
-
-[build-dependencies]
-omnicopy_to_output = { version = "0.3.0", default-features = false }

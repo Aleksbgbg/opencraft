@@ -59,19 +59,27 @@ pub async fn sleep(duration: Duration) {
   TimeoutFuture::new(duration.as_millis().try_into().unwrap_throw()).await
 }
 
-pub async fn read_resource(path: &str) -> Result<Vec<u8>> {
-  Ok(
-    reqwest::get(format!(
-      "{}/{}",
-      window()
+pub struct ResourceReader {
+  origin: String,
+}
+
+impl ResourceReader {
+  pub fn new() -> Result<Self> {
+    Ok(Self {
+      origin: window()
         .location()
         .origin()
         .expect_throw("could not get browser URL origin"),
-      path
-    ))
-    .await?
-    .bytes()
-    .await?
-    .to_vec(),
-  )
+    })
+  }
+
+  pub async fn read(&self, path: &str) -> Result<Vec<u8>> {
+    Ok(
+      reqwest::get(format!("{}/assets/{}", self.origin, path))
+        .await?
+        .bytes()
+        .await?
+        .to_vec(),
+    )
+  }
 }

@@ -1,6 +1,7 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
+use std::path::PathBuf;
 use std::time::Duration;
-use std::{fs, thread};
+use std::{env, fs, thread};
 use winit::window::WindowAttributes;
 
 #[rustfmt::skip]
@@ -38,6 +39,39 @@ pub async fn sleep(duration: Duration) {
   thread::sleep(duration)
 }
 
-pub async fn read_resource(path: &str) -> Result<Vec<u8>> {
-  Ok(fs::read(path)?)
+pub struct ResourceReader {
+  assets: PathBuf,
+}
+
+impl ResourceReader {
+  pub fn new() -> Result<Self> {
+    let mut path = env::current_exe()?.parent().unwrap().to_owned();
+
+    if cfg!(debug_assertions) {
+      loop {
+        path.push("assets");
+
+        if fs::exists(&path)? {
+          break;
+        } else {
+          assert!(path.pop());
+          if !path.pop() {
+            bail!("no assets folder found in any parent directories on the path to the executable");
+          }
+        }
+      }
+    } else {
+      path.push("assets");
+
+      if !fs::exists(&path)? {
+        bail!("assets folder ({}) does not exist", path.display());
+      }
+    }
+
+    Ok(Self { assets: path })
+  }
+
+  pub async fn read(&self, path: &str) -> Result<Vec<u8>> {
+    Ok(fs::read(self.assets.join(path))?)
+  }
 }
