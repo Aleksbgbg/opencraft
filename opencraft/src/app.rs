@@ -9,6 +9,7 @@ mod windowing;
 
 use crate::game::Game;
 use crate::platform::error;
+use crate::windowing::cursor_lock::CursorLock;
 use crate::windowing::fullscreen;
 use anyhow::Result;
 use std::sync::Arc;
@@ -17,7 +18,7 @@ use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopClosed, EventLoopProxy};
 use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::window::{CursorGrabMode, Window, WindowId};
+use winit::window::{Window, WindowId};
 
 pub fn start() -> Result<()> {
   platform::init_logging();
@@ -40,8 +41,15 @@ enum AppEvent {
   Init(Box<AppState>),
 }
 
+struct UnwrapApp<'a> {
+  window: &'a Window,
+  game: &'a mut Game,
+  cursor_lock: &'a CursorLock,
+}
+
 struct App {
   state: Option<AppState>,
+  cursor_lock: CursorLock,
   event_loop_proxy: EventLoopProxy<AppEvent>,
 }
 
@@ -49,6 +57,7 @@ impl App {
   fn new(event_loop_proxy: EventLoopProxy<AppEvent>) -> Self {
     App {
       state: None,
+      cursor_lock: CursorLock::default(),
       event_loop_proxy,
     }
   }
@@ -57,9 +66,14 @@ impl App {
     self.state.is_some()
   }
 
-  fn unwrap(&mut self) -> (&Window, &mut Game) {
+  fn unwrap(&mut self) -> UnwrapApp<'_> {
     let state = self.state.as_mut().unwrap();
-    (&state.window, &mut state.game)
+
+    UnwrapApp {
+      window: &state.window,
+      game: &mut state.game,
+      cursor_lock: &self.cursor_lock,
+    }
   }
 }
 
@@ -73,8 +87,9 @@ impl ApplicationHandler<AppEvent> for App {
         .create_window(window_attributes)
         .expect("could not create window"),
     );
-    let _ = window.set_cursor_grab(CursorGrabMode::Confined);
-    window.set_cursor_visible(false);
+
+    self.cursor_lock.hide_mouse(&window);
+    self.cursor_lock.try_lock(&window);
 
     verify_send_event(
       self
@@ -120,7 +135,11 @@ impl ApplicationHandler<AppEvent> for App {
       return;
     }
 
-    let (window, game) = self.unwrap();
+    let UnwrapApp {
+      window,
+      game,
+      cursor_lock,
+    } = self.unwrap();
 
     match event {
       WindowEvent::CloseRequested => {
@@ -160,6 +179,12 @@ impl ApplicationHandler<AppEvent> for App {
         }
         ElementState::Released => {
           if let PhysicalKey::Code(code) = physical_key {
+            #[allow(clippy::single_match)]
+            match code {
+              KeyCode::F11 => cursor_lock.try_user_requested_lock(window),
+              _ => {}
+            }
+
             game.release(code);
           }
         }
@@ -178,11 +203,17 @@ impl ApplicationHandler<AppEvent> for App {
       return;
     }
 
-    let (_, game) = self.unwrap();
+    let UnwrapApp {
+      window,
+      game,
+      cursor_lock,
+    } = self.unwrap();
 
     #[allow(clippy::single_match)]
     match event {
       DeviceEvent::MouseMotion { delta: (x, y) } => {
+        cursor_lock.update_position(window);
+
         game.motion(x as f32, y as f32);
       }
       _ => {}
@@ -194,7 +225,7 @@ impl ApplicationHandler<AppEvent> for App {
       return;
     }
 
-    let (window, _) = self.unwrap();
+    let UnwrapApp { window, .. } = self.unwrap();
 
     window.request_redraw();
   }
