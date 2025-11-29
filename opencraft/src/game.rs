@@ -34,6 +34,7 @@ use wgpu::{
   vertex_attr_array,
 };
 use winit::dpi::PhysicalSize;
+use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 use zerocopy::{Immutable, IntoBytes};
@@ -357,7 +358,9 @@ pub struct Game {
   last: Instant,
 
   camera: Camera,
+
   keys_down: HashSet<KeyCode>,
+  mouse_buttons_released: HashSet<MouseButton>,
 
   intersects_cube: bool,
 
@@ -992,6 +995,7 @@ impl Game {
       last: Instant::now(),
       camera: Camera::new(),
       keys_down: HashSet::new(),
+      mouse_buttons_released: HashSet::new(),
       intersects_cube: false,
       surface,
       device,
@@ -1064,6 +1068,10 @@ impl Game {
     self.keys_down.remove(&code);
   }
 
+  pub fn mouse_release(&mut self, button: MouseButton) {
+    self.mouse_buttons_released.insert(button);
+  }
+
   pub fn motion(&mut self, x: f32, y: f32) {
     const MOVEMENT_SPEED: Angle = FULL_ROTATION;
 
@@ -1115,6 +1123,8 @@ impl Game {
         5.0,
       ))
       .is_some();
+
+    self.mouse_buttons_released.clear();
   }
 
   fn render(&self) -> Result<()> {

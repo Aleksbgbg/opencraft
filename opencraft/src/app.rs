@@ -157,6 +157,11 @@ impl ApplicationHandler<AppEvent> for App {
       WindowEvent::ScaleFactorChanged { .. } => {
         game.resize(window.inner_size());
       }
+      WindowEvent::MouseInput { state, button, .. } => {
+        if state == ElementState::Released {
+          game.mouse_release(button);
+        }
+      }
       WindowEvent::KeyboardInput {
         event: KeyEvent {
           state,
