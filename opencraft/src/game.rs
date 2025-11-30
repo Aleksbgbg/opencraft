@@ -1009,14 +1009,17 @@ impl Game {
     let delta_secs = delta.as_secs_f32();
 
     let mut camera_movement = Vec3::default();
-    for key in &self.keys_down {
-      match key {
-        KeyCode::KeyW => camera_movement += Z_AXIS,
-        KeyCode::KeyS => camera_movement -= Z_AXIS,
-        KeyCode::KeyA => camera_movement -= X_AXIS,
-        KeyCode::KeyD => camera_movement += X_AXIS,
-        _ => {}
-      }
+    if self.keys_down.contains(&KeyCode::KeyW) {
+      camera_movement += Z_AXIS;
+    }
+    if self.keys_down.contains(&KeyCode::KeyS) {
+      camera_movement -= Z_AXIS;
+    }
+    if self.keys_down.contains(&KeyCode::KeyA) {
+      camera_movement -= X_AXIS;
+    }
+    if self.keys_down.contains(&KeyCode::KeyD) {
+      camera_movement += X_AXIS;
     }
     if camera_movement.len_sq() > 0.0 {
       self
