@@ -38,7 +38,7 @@ impl Camera {
   }
 
   pub fn translate(&mut self, offset: Vec3) {
-    self.position += self.rotor().rotate(offset);
+    self.position += self.rotor_yaw().rotate(offset);
   }
 
   pub fn rotate(&mut self, yaw: Angle, pitch: Angle) {
