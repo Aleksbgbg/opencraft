@@ -9,7 +9,7 @@ use zerocopy::{Immutable, IntoBytes};
 type Column = [f32; 4];
 
 #[repr(C)]
-#[derive(Clone, Default, Debug, Immutable, IntoBytes)]
+#[derive(Debug, Default, Clone, Immutable, IntoBytes)]
 pub struct Mat4x4 {
   values: [Column; 4],
 }

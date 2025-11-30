@@ -3,7 +3,7 @@ use crate::core::math::bivec3::BiVec3;
 use crate::core::math::vec3::Vec3;
 use std::ops::{Mul, Neg};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rotor3 {
   scalar: f32,
   xy: f32,

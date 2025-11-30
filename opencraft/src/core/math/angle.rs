@@ -12,11 +12,11 @@ fn degrees_to_radians(degrees: f32) -> f32 {
 }
 
 #[derive(
+  Debug,
+  Default,
   Clone,
   Copy,
   PartialOrd,
-  Default,
-  Debug,
   Neg,
   Add,
   Sub,
