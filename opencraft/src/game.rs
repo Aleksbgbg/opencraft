@@ -248,12 +248,6 @@ const VERTICES: &[Vertex] = &[
 
 #[repr(C)]
 #[derive(Clone, Copy, Immutable, IntoBytes)]
-struct SkyVertex {
-  position: [f32; 3],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Immutable, IntoBytes)]
 struct Quad {
   left: f32,
   right: f32,
@@ -380,7 +374,6 @@ pub struct Game {
   skybox_transform_buffer: Buffer,
   skybox_transform_bind_group: BindGroup,
   skybox_pipeline: RenderPipeline,
-  skybox_vertex_buffer: Buffer,
 
   fullscreen_copy_texture_bind_group_layout: BindGroupLayout,
   fullscreen_copy_pipeline: RenderPipeline,
@@ -646,7 +639,7 @@ impl Game {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<SkyVertex>() as BufferAddress,
+          array_stride: mem::size_of::<Vertex>() as BufferAddress,
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3],
         }],
@@ -684,18 +677,6 @@ impl Game {
       },
       multiview: None,
       cache: None,
-    });
-
-    let skybox_vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-      label: Some("Skybox Vertex Buffer"),
-      contents: VERTICES
-        .iter()
-        .map(|vertex| SkyVertex {
-          position: vertex.position,
-        })
-        .collect::<Vec<_>>()
-        .as_bytes(),
-      usage: BufferUsages::VERTEX,
     });
 
     let fullscreen_copy_texture_bind_group_layout =
@@ -934,7 +915,6 @@ impl Game {
       skybox_transform_buffer,
       skybox_transform_bind_group,
       skybox_pipeline,
-      skybox_vertex_buffer,
       fullscreen_copy_texture_bind_group_layout,
       fullscreen_copy_pipeline,
       crosshair_size: crosshair_width,
@@ -1085,13 +1065,12 @@ impl Game {
 
       render_pass.set_pipeline(&self.skybox_pipeline);
       render_pass.set_bind_group(0, &self.skybox_transform_bind_group, &[]);
-      render_pass.set_vertex_buffer(0, self.skybox_vertex_buffer.slice(..));
+      render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
       render_pass.draw(0..VERTICES.len() as u32, 0..1);
 
       render_pass.set_pipeline(&self.pipeline);
       render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
-      render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
       render_pass.draw(0..VERTICES.len() as u32, 0..1);
     }
     {
