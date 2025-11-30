@@ -147,7 +147,7 @@
             systemd.tmpfiles.rules = [
               # Type Path Mode User Group Age Argument
               "d ${runtimeFilesDir} 0755 ${packageName} ${packageName} - -"
-              "L ${runtimeFilesDir}/frontend - - - - ${self.packages.${pkgs.system}.default}"
+              "L+ ${runtimeFilesDir}/frontend - - - - ${self.packages.${pkgs.system}.default}"
             ];
           };
         };
