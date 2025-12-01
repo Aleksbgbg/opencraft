@@ -94,6 +94,37 @@ impl AlignedBox3 {
   }
 }
 
+pub trait Intersects<P> {
+  fn intersects(&self, polytope: &P) -> bool;
+}
+
+impl Intersects<Segment3> for AlignedBox3 {
+  fn intersects(&self, segment: &Segment3) -> bool {
+    let delta = segment.origin() - self.origin();
+
+    let direction_cross_delta = Vec3::cross(segment.direction(), delta);
+
+    let direction_dot_x_abs = Vec3::dot(segment.direction(), X_AXIS).abs();
+    let direction_dot_y_abs = Vec3::dot(segment.direction(), Y_AXIS).abs();
+    let direction_dot_z_abs = Vec3::dot(segment.direction(), Z_AXIS).abs();
+
+    let box_extent = self.extent();
+
+    (Vec3::dot(direction_cross_delta, X_AXIS).abs()
+      <= ((box_extent.y() * direction_dot_z_abs) + (box_extent.z() * direction_dot_y_abs)))
+      && (Vec3::dot(direction_cross_delta, Y_AXIS).abs()
+        <= ((box_extent.x() * direction_dot_z_abs) + (box_extent.z() * direction_dot_x_abs)))
+      && (Vec3::dot(direction_cross_delta, Z_AXIS).abs()
+        <= ((box_extent.x() * direction_dot_y_abs) + (box_extent.y() * direction_dot_x_abs)))
+      && (Vec3::dot(delta, X_AXIS).abs()
+        <= (box_extent.x() + (segment.extent() * direction_dot_x_abs)))
+      && (Vec3::dot(delta, Y_AXIS).abs()
+        <= (box_extent.y() + (segment.extent() * direction_dot_y_abs)))
+      && (Vec3::dot(delta, Z_AXIS).abs()
+        <= (box_extent.z() + (segment.extent() * direction_dot_z_abs)))
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
