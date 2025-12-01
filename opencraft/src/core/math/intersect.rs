@@ -2,7 +2,7 @@ use crate::core::math;
 use crate::core::math::aligned_box3::AlignedBox3;
 use crate::core::math::segment3::Segment3;
 use crate::core::math::vec3::Vec3;
-use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
+use crate::core::math::{Direction, X_AXIS, Y_AXIS, Z_AXIS};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BoxFace {
@@ -16,13 +16,19 @@ pub enum BoxFace {
 
 impl BoxFace {
   pub fn normal(self) -> Vec3 {
-    match self {
-      BoxFace::XPos => X_AXIS,
-      BoxFace::XNeg => -X_AXIS,
-      BoxFace::YPos => Y_AXIS,
-      BoxFace::YNeg => -Y_AXIS,
-      BoxFace::ZPos => Z_AXIS,
-      BoxFace::ZNeg => -Z_AXIS,
+    Into::<Direction>::into(self).normal()
+  }
+}
+
+impl From<BoxFace> for Direction {
+  fn from(value: BoxFace) -> Self {
+    match value {
+      BoxFace::XPos => Direction::XPos,
+      BoxFace::XNeg => Direction::XNeg,
+      BoxFace::YPos => Direction::YPos,
+      BoxFace::YNeg => Direction::YNeg,
+      BoxFace::ZPos => Direction::ZPos,
+      BoxFace::ZNeg => Direction::ZNeg,
     }
   }
 }

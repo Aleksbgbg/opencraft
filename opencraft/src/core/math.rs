@@ -21,6 +21,29 @@ pub const XY_PLANE: BiVec3 = BiVec3::new(1.0, 0.0, 0.0);
 pub const YZ_PLANE: BiVec3 = BiVec3::new(0.0, 1.0, 0.0);
 pub const ZX_PLANE: BiVec3 = BiVec3::new(0.0, 0.0, 1.0);
 
+#[derive(Debug, Clone, Copy)]
+pub enum Direction {
+  XPos,
+  XNeg,
+  YPos,
+  YNeg,
+  ZPos,
+  ZNeg,
+}
+
+impl Direction {
+  pub fn normal(self) -> Vec3 {
+    match self {
+      Direction::XPos => X_AXIS,
+      Direction::XNeg => -X_AXIS,
+      Direction::YPos => Y_AXIS,
+      Direction::YNeg => -Y_AXIS,
+      Direction::ZPos => Z_AXIS,
+      Direction::ZNeg => -Z_AXIS,
+    }
+  }
+}
+
 pub fn nearly_eq(lhs: f32, rhs: f32) -> bool {
   nearly_eq_tolerance(lhs, rhs, 1.0)
 }
