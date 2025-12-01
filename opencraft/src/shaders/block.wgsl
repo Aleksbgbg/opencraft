@@ -1,5 +1,8 @@
 @group(0) @binding(0)
-var<uniform> transform: array<mat4x4<f32>, 256>;
+var<uniform> world_to_screen: mat4x4<f32>;
+
+@group(2) @binding(0)
+var<uniform> model_to_world: array<mat4x4<f32>, 256>;
 
 struct VertexInput {
   @builtin(instance_index) instance: u32,
@@ -15,7 +18,7 @@ struct VertexOutput {
 @vertex
 fn vs_main(vertex: VertexInput) -> VertexOutput {
   var out: VertexOutput;
-  out.position = transform[vertex.instance] * vec4<f32>(vertex.position, 1.0);
+  out.position = world_to_screen * model_to_world[vertex.instance] * vec4<f32>(vertex.position, 1.0);
   out.texture_coordinate = vertex.texture_coordinate;
   return out;
 }

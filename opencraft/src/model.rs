@@ -1,14 +1,24 @@
+pub mod block;
+pub mod chunk;
+pub mod iterators;
+pub mod layout;
+pub mod position;
+pub mod terrain;
+
 use crate::camera::Camera;
-use crate::core::math::aligned_box3::AlignedBox3;
 use crate::core::math::angle::{Angle, FULL_ROTATION};
-use crate::core::math::intersect::BoxFace;
+use crate::core::math::intersect::{BoxFace, Intersects};
 use crate::core::math::segment3::Segment3;
 use crate::core::math::vec2::Vec2;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use crate::core::type_conversions::{CoerceLossy, CoerceLossyFloor};
+use crate::model::block::Block;
+use crate::model::chunk::Chunk;
+use crate::model::layout::VISIBLE_CHUNKS_USIZE;
+use crate::model::position::{BlockPosition, ChunkPosition};
 use arrayvec::ArrayVec;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
@@ -16,10 +26,6 @@ use winit::keyboard::KeyCode;
 const FRAME_TIME_MEASUREMENTS: usize = 60;
 
 pub const BLOCK_LIMIT: usize = 256;
-
-const CUBE_SIZE: f32 = 1.0;
-pub const CUBE_EXTENT: f32 = CUBE_SIZE / 2.0;
-const CUBE_TRANSLATE: Vec3 = Vec3::new(0.0, 0.0, 3.0);
 
 pub struct UpdateInputs<'a> {
   pub delta: Duration,
@@ -38,19 +44,36 @@ pub struct Model {
 
   player_camera: Camera,
 
-  blocks: Vec<Vec3>,
-  target_block_index_face: Option<(usize, BoxFace)>,
+  chunks: HashMap<ChunkPosition, Chunk>,
+  unloaded_chunks: Vec<ChunkPosition>,
+  loaded_chunks: Vec<ChunkPosition>,
+
+  destroyed_blocks: Vec<(ChunkPosition, BlockPosition)>,
+  created_blocks: Vec<(ChunkPosition, BlockPosition)>,
+  target_block: Option<(ChunkPosition, BlockPosition, BoxFace, Block)>,
 }
 
 impl Model {
   pub fn new() -> Self {
+    let player_camera = Camera::default();
+
+    let mut chunks = HashMap::with_capacity(VISIBLE_CHUNKS_USIZE);
+    let loaded_chunks = iterators::surrounding_chunks(player_camera.position()).collect();
+    for &chunk_position in &loaded_chunks {
+      chunks.insert(chunk_position, Chunk::load(chunk_position));
+    }
+
     Self {
       show_debug_display: cfg!(debug_assertions),
       frame_times: Default::default(),
       frame_time_stale_index: Default::default(),
-      player_camera: Default::default(),
-      blocks: Vec::from([CUBE_TRANSLATE]),
-      target_block_index_face: Default::default(),
+      player_camera,
+      chunks,
+      unloaded_chunks: Default::default(),
+      loaded_chunks,
+      destroyed_blocks: Default::default(),
+      created_blocks: Default::default(),
+      target_block: Default::default(),
     }
   }
 
@@ -104,21 +127,52 @@ impl Model {
       player_movement -= Y_AXIS;
     }
     if player_movement.len_sq() > 0.0 {
+      let position_before = self.player_camera.position();
+
       self
         .player_camera
         .translate(PLAYER_MOVEMENT_SPEED * delta_secs * player_movement.norm());
+
+      let position_after = self.player_camera.position();
+
+      if let Some((unloaded_chunks, loaded_chunks)) =
+        iterators::chunk_difference(position_before, position_after)
+      {
+        for chunk_position in unloaded_chunks {
+          self.chunks.remove(&chunk_position);
+
+          self.unloaded_chunks.push(chunk_position);
+        }
+        for chunk_position in loaded_chunks {
+          self
+            .chunks
+            .insert(chunk_position, Chunk::load(chunk_position));
+
+          self.loaded_chunks.push(chunk_position);
+        }
+      }
     }
 
-    if let Some((index, face)) = self.target_block_index_face {
+    if let Some((chunk_position, block_position, face, _)) = self.target_block {
       if mouse_buttons_released.contains(&MouseButton::Left) {
-        self.blocks.swap_remove(index);
-      } else if mouse_buttons_released.contains(&MouseButton::Right)
-        && (self.blocks.len() < BLOCK_LIMIT)
-      {
-        let target_block = self.blocks.get(index).unwrap();
-        let next_block = *target_block + (CUBE_SIZE * face.normal());
+        self
+          .chunks
+          .get_mut(&chunk_position)
+          .unwrap()
+          .destroy_block(block_position);
 
-        self.blocks.push(next_block);
+        self.destroyed_blocks.push((chunk_position, block_position));
+      } else if mouse_buttons_released.contains(&MouseButton::Right)
+        && let Some((chunk_position, block_position)) =
+          layout::advance_in_direction(block_position, face.into())
+      {
+        self
+          .chunks
+          .get_mut(&chunk_position)
+          .unwrap()
+          .place_block(block_position, Block::Grass);
+
+        self.created_blocks.push((chunk_position, block_position));
       }
     }
 
@@ -127,19 +181,31 @@ impl Model {
       self.player_camera.forward(),
       REACH_DISTANCE,
     );
+    self.target_block = {
+      let mut min_dist = f32::MAX;
+      let mut intersection = None;
 
-    self.target_block_index_face = None;
-    let mut min_dist = f32::MAX;
-    for (index, block) in self.blocks.iter().enumerate() {
-      if let Some(face) = AlignedBox3::cube(*block, CUBE_EXTENT).find_intersecting_face(&reach) {
-        let dist = Vec3::dist_sq(self.player_camera.position(), *block);
+      for chunk in iterators::immediate_surrounding_chunks(reach.origin())
+        .filter_map(|chunk_position| self.chunks.get(&chunk_position))
+        .filter(|chunk| layout::chunk_bounding_volume(chunk.position()).intersects(&reach))
+      {
+        for (block_position, block) in chunk.blocks() {
+          if let Some(face) =
+            layout::block_bounding_volume(block_position).find_intersecting_face(&reach)
+          {
+            let world_position = layout::block_to_world(block_position);
+            let dist = Vec3::dist_sq(reach.start(), world_position);
 
-        if dist < min_dist {
-          self.target_block_index_face = Some((index, face));
-          min_dist = dist;
+            if dist < min_dist {
+              min_dist = dist;
+              intersection = Some((chunk.position(), block_position, face, block));
+            }
+          }
         }
       }
-    }
+
+      intersection
+    };
 
     if keys_released.contains(&KeyCode::F3) {
       self.show_debug_display = !self.show_debug_display;
@@ -164,14 +230,34 @@ impl Model {
       None
     };
 
-    let target_block_index = self.target_block_index_face.map(|(index, _)| index);
-
     Scene {
       debug_display,
       player_camera: &self.player_camera,
-      blocks: &self.blocks,
-      target_block_index,
+      chunks: &self.chunks,
+      unloaded_chunks: &self.unloaded_chunks,
+      loaded_chunks: &self.loaded_chunks,
+      destroyed_blocks: &self.destroyed_blocks,
+      created_blocks: &self.created_blocks,
+      target_block: self
+        .target_block
+        .map(
+          |(chunk_position, block_position, face, block)| TargetBlock {
+            chunk_position,
+            block_position,
+            world_position: layout::block_to_world(block_position),
+            face,
+            block,
+          },
+        ),
     }
+  }
+
+  pub fn clear_changes(&mut self) {
+    self.unloaded_chunks.clear();
+    self.loaded_chunks.clear();
+
+    self.destroyed_blocks.clear();
+    self.created_blocks.clear();
   }
 }
 
@@ -180,11 +266,24 @@ pub struct DebugDisplay {
   pub mean_frame_time_ms: f32,
 }
 
+pub struct TargetBlock {
+  pub chunk_position: ChunkPosition,
+  pub block_position: BlockPosition,
+  pub world_position: Vec3,
+  pub face: BoxFace,
+  pub block: Block,
+}
+
 pub struct Scene<'a> {
   pub debug_display: Option<DebugDisplay>,
 
   pub player_camera: &'a Camera,
 
-  pub blocks: &'a Vec<Vec3>,
-  pub target_block_index: Option<usize>,
+  pub chunks: &'a HashMap<ChunkPosition, Chunk>,
+  pub unloaded_chunks: &'a [ChunkPosition],
+  pub loaded_chunks: &'a [ChunkPosition],
+
+  pub destroyed_blocks: &'a [(ChunkPosition, BlockPosition)],
+  pub created_blocks: &'a [(ChunkPosition, BlockPosition)],
+  pub target_block: Option<TargetBlock>,
 }

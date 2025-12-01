@@ -89,4 +89,5 @@ coerce_lossy_floor!(usize, f32);
 coerce_lossy_ceil!(usize, f32);
 coerce_lossy_floor!(u32, f32);
 coerce_lossy_ceil!(u32, f32);
+coerce_lossy_floor!(i32, f32);
 coerce_lossy_round!(u8, f32);

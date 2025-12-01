@@ -49,6 +49,8 @@ impl Game {
     self.update(elapsed);
     self.render()?;
 
+    self.model.clear_changes();
+
     Ok(())
   }
 

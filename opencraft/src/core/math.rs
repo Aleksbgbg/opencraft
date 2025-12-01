@@ -53,7 +53,10 @@ pub fn nearly_eq_tolerance(lhs: f32, rhs: f32, tolerance_multiplier: f32) -> boo
 }
 
 /// Returns true if value ∈ [min, max].
-pub fn in_range(value: f32, min: f32, max: f32) -> bool {
+pub fn in_range<T>(value: T, min: T, max: T) -> bool
+where
+  T: PartialOrd,
+{
   assert!(min <= max);
 
   (min <= value) && (value <= max)
