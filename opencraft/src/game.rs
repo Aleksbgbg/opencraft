@@ -1093,6 +1093,7 @@ impl Game {
 
   fn update(&mut self, delta: Duration) {
     const CAMERA_MOVEMENT_SPEED: f32 = 10.0;
+    const REACH_DISTANCE: f32 = 5.0;
 
     let delta_secs = delta.as_secs_f32();
 
@@ -1135,7 +1136,7 @@ impl Game {
     }
 
     let position = self.camera.position();
-    let reach = Segment3::start_direction_len(position, self.camera.forward(), 5.0);
+    let reach = Segment3::start_direction_len(position, self.camera.forward(), REACH_DISTANCE);
 
     self.target_cube_index_face = None;
     let mut min_dist = f32::MAX;
