@@ -9,6 +9,7 @@ use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS, mat4};
 use crate::core::type_conversions::{Coerce, CoerceLossy};
 use crate::platform::{Instant, ResourceReader};
+use crate::resources::Texture;
 use anyhow::Result;
 use image::GenericImageView;
 use std::collections::HashSet;
@@ -454,7 +455,7 @@ impl Game {
 
     let assets = ResourceReader::new()?;
 
-    let grass_image = assets.decode_png("textures/block/grass.png").await?;
+    let grass_image = assets.load_texture(Texture::Grass).await?;
     let grass_rgba = grass_image.to_rgba8();
     let (grass_width, grass_height) = grass_image.dimensions();
 
@@ -836,7 +837,7 @@ impl Game {
       cache: None,
     });
 
-    let crosshair_image = assets.decode_png("textures/ui/crosshair.png").await?;
+    let crosshair_image = assets.load_texture(Texture::Crosshair).await?;
     let crosshair_alpha = crosshair_image.to_luma8();
     let (crosshair_width, crosshair_height) = crosshair_image.dimensions();
 
