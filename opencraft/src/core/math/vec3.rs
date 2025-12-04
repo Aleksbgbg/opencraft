@@ -52,6 +52,10 @@ impl Vec3 {
     )
   }
 
+  pub fn dist_sq(lhs: Self, rhs: Self) -> f32 {
+    (lhs - rhs).len_sq()
+  }
+
   pub fn len(self) -> f32 {
     self.len_sq().sqrt()
   }
