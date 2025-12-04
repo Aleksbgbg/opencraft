@@ -10,10 +10,8 @@ use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS, mat4};
 use crate::core::type_conversions::{Coerce, CoerceLossy};
 use crate::platform::{Instant, ResourceReader};
 use anyhow::Result;
-use image::codecs::png::PngDecoder;
-use image::{DynamicImage, GenericImageView};
+use image::GenericImageView;
 use std::collections::HashSet;
-use std::io::Cursor;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use std::{iter, mem};
@@ -1255,14 +1253,5 @@ impl Game {
     output.present();
 
     Ok(())
-  }
-}
-
-impl ResourceReader {
-  async fn decode_png(&self, path: &str) -> Result<DynamicImage> {
-    let image_data = Cursor::new(self.read(path).await?);
-    let decoder = PngDecoder::new(image_data)?;
-
-    Ok(DynamicImage::from_decoder(decoder)?)
   }
 }

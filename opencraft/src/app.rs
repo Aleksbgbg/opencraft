@@ -5,6 +5,7 @@ mod camera;
 mod core;
 mod game;
 mod platform;
+mod resources;
 mod windowing;
 
 use crate::core::math::vec2::Vec2;
