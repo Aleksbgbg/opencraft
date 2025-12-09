@@ -32,3 +32,10 @@ test:
   needs: []
   script:
     - cargo test
+
+bench:
+  stage: test
+  image: rust:latest
+  needs: []
+  script:
+    - cargo bench

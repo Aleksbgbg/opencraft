@@ -2,7 +2,7 @@
 #![feature(duration_millis_float)]
 
 mod camera;
-mod core;
+pub mod core;
 mod game;
 mod platform;
 mod resources;
