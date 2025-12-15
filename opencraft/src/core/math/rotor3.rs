@@ -24,7 +24,6 @@ impl Rotor3 {
     }
   }
 
-  #[allow(dead_code)]
   pub fn from_to(from: Vec3, to: Vec3) -> Self {
     assert!(
       from.is_norm() && to.is_norm(),

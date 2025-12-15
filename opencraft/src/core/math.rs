@@ -13,7 +13,6 @@ pub const X_AXIS: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 pub const Y_AXIS: Vec3 = Vec3::new(0.0, 1.0, 0.0);
 pub const Z_AXIS: Vec3 = Vec3::new(0.0, 0.0, 1.0);
 
-#[allow(dead_code)]
 pub const XY_PLANE: BiVec3 = BiVec3::new(1.0, 0.0, 0.0);
 pub const YZ_PLANE: BiVec3 = BiVec3::new(0.0, 1.0, 0.0);
 pub const ZX_PLANE: BiVec3 = BiVec3::new(0.0, 0.0, 1.0);
