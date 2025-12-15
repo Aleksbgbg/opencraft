@@ -6,6 +6,7 @@ use crate::core::math::mat4::Mat4x4;
 use crate::core::math::segment3::Segment3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS, mat4};
+use crate::core::type_conversions::{Coerce, CoerceLossy};
 use crate::platform::{Instant, ResourceReader};
 use anyhow::Result;
 use image::codecs::png::PngDecoder;
@@ -19,19 +20,18 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
   Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
   BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
-  Buffer, BufferAddress, BufferBindingType, BufferDescriptor, BufferUsages, Color,
-  ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
-  DepthStencilState, Device, DeviceDescriptor, ExperimentalFeatures, Extent3d, Face, Features,
-  FragmentState, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints,
-  MultisampleState, Operations, Origin3d, PipelineCompilationOptions, PipelineLayoutDescriptor,
-  PolygonMode, PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
-  RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-  RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
-  SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration,
-  TexelCopyBufferLayout, TexelCopyTextureInfo, TextureAspect, TextureDescriptor, TextureDimension,
-  TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
-  TextureViewDimension, Trace, VertexBufferLayout, VertexState, VertexStepMode, include_wgsl,
-  vertex_attr_array,
+  Buffer, BufferBindingType, BufferDescriptor, BufferUsages, Color, ColorTargetState, ColorWrites,
+  CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Device,
+  DeviceDescriptor, ExperimentalFeatures, Extent3d, Face, Features, FragmentState, FrontFace,
+  Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MultisampleState, Operations,
+  Origin3d, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode, PowerPreference,
+  PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
+  RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+  RequestAdapterOptions, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
+  StencilState, StoreOp, Surface, SurfaceConfiguration, TexelCopyBufferLayout,
+  TexelCopyTextureInfo, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat,
+  TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
+  Trace, VertexBufferLayout, VertexState, VertexStepMode, include_wgsl, vertex_attr_array,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::MouseButton;
@@ -261,10 +261,10 @@ struct Quad {
 fn calculate_crosshair_quad(screen_width: f32, screen_height: f32, crosshair_size: u32) -> Quad {
   const WIDTH_FRACTION: f32 = 0.008;
 
-  let size_pixels = (WIDTH_FRACTION * screen_width).ceil() as usize;
-  let size_pixels = math::align(size_pixels, crosshair_size.try_into().unwrap());
+  let size_pixels = (WIDTH_FRACTION * screen_width).ceil().coerce_lossy();
+  let size_pixels = math::align(size_pixels, crosshair_size.coerce());
 
-  let (pixels_left, pixels_right) = math::split(size_pixels as f32);
+  let (pixels_left, pixels_right) = math::split(size_pixels.coerce_lossy());
 
   let (width_left, width_right) = math::split(screen_width);
   let (height_top, height_bot) = math::split(screen_height);
@@ -346,7 +346,13 @@ impl ScreenSpaceResources {
     });
 
     Self {
-      perspective: mat4::perspective(width as f32, height as f32, *FOV, Z_NEAR, Z_FAR),
+      perspective: mat4::perspective(
+        width.coerce_lossy(),
+        height.coerce_lossy(),
+        *FOV,
+        Z_NEAR,
+        Z_FAR,
+      ),
       depth_view: depth_texture.create_view(&TextureViewDescriptor::default()),
       render_view,
       fullscreen_copy_texture_bind_group,
@@ -523,7 +529,7 @@ impl Game {
 
     let transform_buffer = device.create_buffer(&BufferDescriptor {
       label: Some("Model -> Clip Space Transform Buffer"),
-      size: (mem::size_of::<Mat4x4>() * BLOCK_LIMIT) as BufferAddress,
+      size: (mem::size_of::<Mat4x4>() * BLOCK_LIMIT).coerce(),
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
       mapped_at_creation: false,
     });
@@ -563,7 +569,7 @@ impl Game {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<Vertex>() as BufferAddress,
+          array_stride: mem::size_of::<Vertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x2],
         }],
@@ -611,7 +617,7 @@ impl Game {
 
     let outline_transform_buffer = device.create_buffer(&BufferDescriptor {
       label: Some("Model -> Clip Space Transform Buffer"),
-      size: mem::size_of::<Mat4x4>() as BufferAddress,
+      size: mem::size_of::<Mat4x4>().coerce(),
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
       mapped_at_creation: false,
     });
@@ -652,7 +658,7 @@ impl Game {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<Vertex>() as BufferAddress,
+          array_stride: mem::size_of::<Vertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3],
         }],
@@ -694,7 +700,7 @@ impl Game {
 
     let skybox_transform_buffer = device.create_buffer(&BufferDescriptor {
       label: Some("Skybox Model -> Clip Space Transform Buffer"),
-      size: mem::size_of::<Mat4x4>() as BufferAddress,
+      size: mem::size_of::<Mat4x4>().coerce(),
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
       mapped_at_creation: false,
     });
@@ -735,7 +741,7 @@ impl Game {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<Vertex>() as BufferAddress,
+          array_stride: mem::size_of::<Vertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3],
         }],
@@ -881,8 +887,8 @@ impl Game {
     let crosshair_quad_buffer = device.create_buffer_init(&BufferInitDescriptor {
       label: Some("Crosshair Normalised Size Buffer"),
       contents: calculate_crosshair_quad(
-        config.width as f32,
-        config.height as f32,
+        config.width.coerce_lossy(),
+        config.height.coerce_lossy(),
         crosshair_width,
       )
       .as_bytes(),
@@ -1049,7 +1055,12 @@ impl Game {
     self.queue.write_buffer(
       &self.crosshair_quad_buffer,
       0,
-      calculate_crosshair_quad(width as f32, height as f32, self.crosshair_size).as_bytes(),
+      calculate_crosshair_quad(
+        width.coerce_lossy(),
+        height.coerce_lossy(),
+        self.crosshair_size,
+      )
+      .as_bytes(),
     );
   }
 
@@ -1078,8 +1089,8 @@ impl Game {
   pub fn motion(&mut self, x: f32, y: f32) {
     const MOVEMENT_SPEED: Angle = FULL_ROTATION;
 
-    let width = self.config.width as f32;
-    let height = self.config.height as f32;
+    let width = self.config.width.coerce_lossy();
+    let height = self.config.height.coerce_lossy();
 
     let delta_x = x / width;
     let delta_y = y / height;
@@ -1215,12 +1226,12 @@ impl Game {
       render_pass.set_pipeline(&self.skybox_pipeline);
       render_pass.set_bind_group(0, &self.skybox_transform_bind_group, &[]);
       render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-      render_pass.draw(0..VERTICES.len() as u32, 0..1);
+      render_pass.draw(0..VERTICES.len().coerce(), 0..1);
 
       render_pass.set_pipeline(&self.pipeline);
       render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
-      render_pass.draw(0..VERTICES.len() as u32, 0..self.blocks.len() as u32);
+      render_pass.draw(0..VERTICES.len().coerce(), 0..self.blocks.len().coerce());
 
       if let Some((index, _)) = self.target_cube_index_face {
         self.queue.write_buffer(
@@ -1231,7 +1242,7 @@ impl Game {
 
         render_pass.set_pipeline(&self.outline_pipeline);
         render_pass.set_bind_group(0, &self.outline_transform_bind_group, &[]);
-        render_pass.draw(0..VERTICES.len() as u32, 0..1);
+        render_pass.draw(0..VERTICES.len().coerce(), 0..1);
       }
     }
     {

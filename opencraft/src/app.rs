@@ -7,6 +7,7 @@ mod game;
 mod platform;
 mod windowing;
 
+use crate::core::type_conversions::CoerceLossy;
 use crate::game::Game;
 use crate::platform::error;
 use crate::windowing::cursor_lock::CursorLock;
@@ -219,7 +220,7 @@ impl ApplicationHandler<AppEvent> for App {
       DeviceEvent::MouseMotion { delta: (x, y) } => {
         cursor_lock.update_position(window);
 
-        game.motion(x as f32, y as f32);
+        game.motion(x.coerce_lossy(), y.coerce_lossy());
       }
       _ => {}
     }
