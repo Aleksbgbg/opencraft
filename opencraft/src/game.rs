@@ -1,10 +1,11 @@
 use crate::camera::{Camera, Direction};
+use crate::core::math;
 use crate::core::math::aligned_box3::{AlignedBox3, BoxFace};
 use crate::core::math::angle::{Angle, FULL_ROTATION};
-use crate::core::math::mat4::{self, Mat4x4};
+use crate::core::math::mat4::Mat4x4;
 use crate::core::math::segment3::Segment3;
 use crate::core::math::vec3::Vec3;
-use crate::core::math::{self, X_AXIS, Y_AXIS, Z_AXIS};
+use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS, mat4};
 use crate::platform::{Instant, ResourceReader};
 use anyhow::Result;
 use image::codecs::png::PngDecoder;

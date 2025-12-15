@@ -1,4 +1,4 @@
-use crate::core::math::{self};
+use crate::core::math;
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::f32::consts::PI;
 use std::fmt::Debug;
