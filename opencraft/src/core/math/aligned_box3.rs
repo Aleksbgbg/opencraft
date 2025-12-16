@@ -2,7 +2,7 @@ use crate::core::math::segment3::Segment3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BoxFace {
   Left,
   Right,
@@ -82,5 +82,26 @@ impl AlignedBox3 {
     }
 
     best_face
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  // Check that an intersection with a face not directly facing the segment start
+  // point is correctly detected.
+  #[test]
+  fn test_intersect_side_face() {
+    let cube = AlignedBox3::cube(Vec3::new(0.0, 0.0, 1.0), 0.5);
+    let segment = Segment3::start_direction_len(
+      Vec3::new(-1.0, 0.0, 0.0),
+      Vec3::new(1.0, 0.0, 2.0).norm(),
+      5.0,
+    );
+
+    let face = cube.intersect_with(&segment);
+
+    assert_eq!(Some(BoxFace::Right), face);
   }
 }
