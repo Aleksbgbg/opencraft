@@ -1,7 +1,23 @@
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use zerocopy::{Immutable, IntoBytes};
 
+#[repr(C)]
 #[derive(
-  Debug, Default, Clone, Copy, Neg, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
+  Debug,
+  Default,
+  Clone,
+  Copy,
+  Neg,
+  Add,
+  Sub,
+  Mul,
+  Div,
+  AddAssign,
+  SubAssign,
+  MulAssign,
+  DivAssign,
+  Immutable,
+  IntoBytes,
 )]
 pub struct Vec2 {
   x: f32,

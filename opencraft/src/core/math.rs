@@ -9,6 +9,8 @@ pub mod vec3;
 
 use crate::core::math::bivec3::BiVec3;
 use crate::core::math::vec3::Vec3;
+use crate::core::type_conversions::CoerceLossy;
+use std::ops::RangeInclusive;
 
 pub const X_AXIS: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 pub const Y_AXIS: Vec3 = Vec3::new(0.0, 1.0, 0.0);
@@ -50,4 +52,21 @@ pub fn align(value: usize, alignment: usize) -> usize {
 pub fn split(value: f32) -> (f32, f32) {
   let half = value / 2.0;
   (half.ceil(), half.floor())
+}
+
+pub fn affine_transform(
+  value: f32,
+  input: RangeInclusive<f32>,
+  output: RangeInclusive<f32>,
+) -> f32 {
+  let input_range = input.end() - input.start();
+  let output_range = output.end() - output.start();
+
+  let scale_factor = output_range / input_range;
+
+  ((value - input.start()) * scale_factor) + output.start()
+}
+
+pub fn normalized_f32_to_u8(value: f32) -> u8 {
+  (value * (f32::powf(2.0, 8.0) - 1.0)).round().coerce_lossy()
 }

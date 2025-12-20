@@ -18,8 +18,10 @@ derive_more = { version = "2.0.1", default-features = false, features = ["add", 
 env_logger = { version = "0.11.8", default-features = false, features = ["auto-color"] }
 image = { version = "0.25.8", default-features = false, features = ["png"] }
 pollster = { version = "0.4.0", default-features = false }
+rusttype = { version = "0.9.3", default-features = false, features = ["std"] }
 wgpu = { version = "27.0.1", default-features = false, features = ["wgsl", "vulkan"] }
 winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "x11"] }
+wuff = { version = "0.2.3", default-features = false, features = ["brotli"] }
 zerocopy = { version = "0.8.27", default-features = false, features = ["derive"] }
 
 [target.'cfg(target_family = "wasm")'.dependencies]

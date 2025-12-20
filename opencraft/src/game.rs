@@ -1,4 +1,5 @@
 use crate::camera::{Camera, Direction};
+use crate::core;
 use crate::core::math;
 use crate::core::math::aligned_box3::{AlignedBox3, BoxFace};
 use crate::core::math::angle::{Angle, FULL_ROTATION};
@@ -10,6 +11,7 @@ use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS, mat4};
 use crate::core::type_conversions::{Coerce, CoerceLossy};
 use crate::platform::{Instant, ResourceReader};
 use crate::resources::Texture;
+use crate::text::{FontAtlas, TextVertex};
 use anyhow::Result;
 use image::GenericImageView;
 use std::collections::HashSet;
@@ -39,6 +41,9 @@ use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 use zerocopy::{Immutable, IntoBytes};
+
+const FONT_SCALE: f32 = 24.0;
+const FRAME_TIME_MEASUREMENTS: usize = 60;
 
 const BLOCK_LIMIT: usize = 256;
 
@@ -373,6 +378,12 @@ pub struct Game {
 
   target_cube_index_face: Option<(usize, BoxFace)>,
 
+  show_debug_display: bool,
+  frame_times: Vec<Duration>,
+  frame_time_stale_index: usize,
+
+  font_atlas: FontAtlas,
+
   surface: Surface<'static>,
   device: Device,
   queue: Queue,
@@ -402,6 +413,10 @@ pub struct Game {
   crosshair_quad_buffer: Buffer,
   crosshair_bind_group: BindGroup,
   crosshair_pipeline: RenderPipeline,
+
+  text_buffer: Option<Buffer>,
+  text_bind_group: BindGroup,
+  text_pipeline: RenderPipeline,
 }
 
 impl Game {
@@ -968,6 +983,113 @@ impl Game {
       cache: None,
     });
 
+    let (font_atlas, font_atlas_alpha) = FontAtlas::load(&assets, FONT_SCALE).await?;
+    let (font_atlas_width, font_atlas_height) = font_atlas.dimensions();
+
+    let font_atlas_texture = device.create_texture_with_data(
+      &queue,
+      &TextureDescriptor {
+        label: Some("Font Atlas Alpha Texture"),
+        size: Extent3d {
+          width: font_atlas_width,
+          height: font_atlas_height,
+          depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::R8Unorm,
+        usage: TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+      },
+      TextureDataOrder::default(),
+      &font_atlas_alpha,
+    );
+
+    let font_atlas_view = font_atlas_texture.create_view(&TextureViewDescriptor::default());
+    let text_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+      label: Some("Text Bind Group Layout"),
+      entries: &[
+        BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Texture {
+            sample_type: TextureSampleType::Float { filterable: true },
+            view_dimension: TextureViewDimension::D2,
+            multisampled: false,
+          },
+          count: None,
+        },
+        BindGroupLayoutEntry {
+          binding: 1,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Sampler(SamplerBindingType::Filtering),
+          count: None,
+        },
+      ],
+    });
+    let text_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Text Bind Group"),
+      layout: &text_bind_group_layout,
+      entries: &[
+        BindGroupEntry {
+          binding: 0,
+          resource: BindingResource::TextureView(&font_atlas_view),
+        },
+        BindGroupEntry {
+          binding: 1,
+          resource: BindingResource::Sampler(&default_sampler),
+        },
+      ],
+    });
+    let text_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+      label: Some("Text Render Pipeline Layout"),
+      bind_group_layouts: &[&text_bind_group_layout],
+      push_constant_ranges: &[],
+    });
+    let text_shader = device.create_shader_module(include_wgsl!("shaders/text.wgsl"));
+    let text_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+      label: Some("Text Render Pipeline"),
+      layout: Some(&text_layout),
+      vertex: VertexState {
+        module: &text_shader,
+        entry_point: Some("vs_main"),
+        compilation_options: PipelineCompilationOptions::default(),
+        buffers: &[VertexBufferLayout {
+          array_stride: mem::size_of::<TextVertex>().coerce(),
+          step_mode: VertexStepMode::Vertex,
+          attributes: &vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+        }],
+      },
+      fragment: Some(FragmentState {
+        module: &text_shader,
+        entry_point: Some("fs_main"),
+        compilation_options: PipelineCompilationOptions::default(),
+        targets: &[Some(ColorTargetState {
+          format: config.format,
+          blend: Some(BlendState::ALPHA_BLENDING),
+          write_mask: ColorWrites::ALL,
+        })],
+      }),
+      primitive: PrimitiveState {
+        topology: PrimitiveTopology::TriangleList,
+        strip_index_format: None,
+        front_face: FrontFace::Ccw,
+        cull_mode: None,
+        unclipped_depth: false,
+        polygon_mode: PolygonMode::Fill,
+        conservative: false,
+      },
+      depth_stencil: None,
+      multisample: MultisampleState {
+        count: 1,
+        mask: !0,
+        alpha_to_coverage_enabled: false,
+      },
+      multiview: None,
+      cache: None,
+    });
+
     let screen = ScreenSpaceResources::construct(
       &device,
       &config,
@@ -982,6 +1104,10 @@ impl Game {
       mouse_buttons_released: HashSet::new(),
       blocks: Vec::from([CUBE_TRANSLATE]),
       target_cube_index_face: None,
+      show_debug_display: cfg!(debug_assertions),
+      frame_times: Vec::with_capacity(FRAME_TIME_MEASUREMENTS),
+      frame_time_stale_index: 0,
+      font_atlas,
       surface,
       device,
       queue,
@@ -1005,6 +1131,9 @@ impl Game {
       crosshair_quad_buffer,
       crosshair_bind_group,
       crosshair_pipeline,
+      text_buffer: None,
+      text_bind_group,
+      text_pipeline,
     })
   }
 
@@ -1061,6 +1190,10 @@ impl Game {
   }
 
   pub fn release(&mut self, code: KeyCode) {
+    if code == KeyCode::F3 {
+      self.show_debug_display = !self.show_debug_display;
+    }
+
     self.keys_down.remove(&code);
   }
 
@@ -1081,6 +1214,15 @@ impl Game {
   fn update(&mut self, delta: Duration) {
     const CAMERA_MOVEMENT_SPEED: f32 = 10.0;
     const REACH_DISTANCE: f32 = 5.0;
+
+    if self.show_debug_display {
+      if self.frame_times.len() < FRAME_TIME_MEASUREMENTS {
+        self.frame_times.push(delta);
+      } else {
+        self.frame_times[self.frame_time_stale_index] = delta;
+        self.frame_time_stale_index = (self.frame_time_stale_index + 1) % FRAME_TIME_MEASUREMENTS;
+      }
+    }
 
     let delta_secs = delta.as_secs_f32();
 
@@ -1141,7 +1283,7 @@ impl Game {
     self.mouse_buttons_released.clear();
   }
 
-  fn render(&self) -> Result<()> {
+  fn render(&mut self) -> Result<()> {
     let output = self.surface.get_current_texture()?;
     let view = output
       .texture
@@ -1247,6 +1389,45 @@ impl Game {
       render_pass.set_pipeline(&self.crosshair_pipeline);
       render_pass.set_bind_group(1, &self.crosshair_bind_group, &[]);
       render_pass.draw(0..4, 0..1);
+
+      if self.show_debug_display {
+        let mean_frame_time_ms = self
+          .frame_times
+          .iter()
+          .map(Duration::as_millis_f32)
+          .sum::<f32>()
+          / self.frame_times.len().coerce_lossy();
+        let fps_text = format!(
+          "FPS: {} ({:.3}ms)",
+          (1000.0 / mean_frame_time_ms).round(),
+          mean_frame_time_ms
+        );
+
+        let mut text_vertices = Vec::new();
+        self.font_atlas.push_text_vertices(
+          &fps_text,
+          PhysicalSize::new(5, 5),
+          PhysicalSize::new(self.config.width, self.config.height),
+          &mut text_vertices,
+        );
+
+        if let Some(text_buffer) = &self.text_buffer {
+          if text_buffer.size() < core::slice_byte_len(&text_vertices).coerce() {
+            self.create_text_buffer(&text_vertices);
+          } else {
+            self
+              .queue
+              .write_buffer(text_buffer, 0, text_vertices.as_bytes());
+          }
+        } else {
+          self.create_text_buffer(&text_vertices);
+        }
+
+        render_pass.set_pipeline(&self.text_pipeline);
+        render_pass.set_bind_group(0, &self.text_bind_group, &[]);
+        render_pass.set_vertex_buffer(0, self.text_buffer.as_ref().unwrap().slice(..));
+        render_pass.draw(0..text_vertices.len().coerce(), 0..1);
+      }
     }
 
     self.queue.submit(iter::once(encoder.finish()));
@@ -1254,5 +1435,13 @@ impl Game {
     output.present();
 
     Ok(())
+  }
+
+  fn create_text_buffer(&mut self, text_vertices: &[TextVertex]) {
+    self.text_buffer = Some(self.device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Text Vertices"),
+      contents: text_vertices.as_bytes(),
+      usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+    }));
   }
 }

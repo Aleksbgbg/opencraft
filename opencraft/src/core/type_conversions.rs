@@ -38,6 +38,12 @@ impl CoerceLossy<f32> for u32 {
   }
 }
 
+impl Coerce<usize> for i32 {
+  fn coerce(self) -> usize {
+    self.try_into().unwrap()
+  }
+}
+
 impl CoerceLossy<f32> for f64 {
   fn coerce_lossy(self) -> f32 {
     self as f32
@@ -47,5 +53,17 @@ impl CoerceLossy<f32> for f64 {
 impl CoerceLossy<usize> for f32 {
   fn coerce_lossy(self) -> usize {
     self as usize
+  }
+}
+
+impl CoerceLossy<u32> for f32 {
+  fn coerce_lossy(self) -> u32 {
+    self as u32
+  }
+}
+
+impl CoerceLossy<u8> for f32 {
+  fn coerce_lossy(self) -> u8 {
+    self as u8
   }
 }
