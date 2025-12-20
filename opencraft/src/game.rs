@@ -10,10 +10,9 @@ use crate::platform::{Instant, ResourceReader};
 use anyhow::Result;
 use image::codecs::png::PngDecoder;
 use image::{DynamicImage, GenericImageView};
-use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::io::Cursor;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
@@ -42,9 +41,7 @@ use zerocopy::{Immutable, IntoBytes};
 
 const BLOCK_LIMIT: usize = 256;
 
-lazy_static! {
-  static ref FOV: Angle = Angle::degrees(75.0);
-}
+static FOV: LazyLock<Angle> = LazyLock::new(|| Angle::degrees(75.0));
 const Z_NEAR: f32 = 0.01;
 const Z_FAR: f32 = 1000.0;
 

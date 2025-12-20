@@ -17,7 +17,6 @@ anyhow = { version = "1.0.100", default-features = false, features = ["backtrace
 derive_more = { version = "2.0.1", default-features = false, features = ["add", "add_assign", "mul", "mul_assign", "not"] }
 env_logger = { version = "0.11.8", default-features = false, features = ["auto-color"] }
 image = { version = "0.25.8", default-features = false, features = ["png"] }
-lazy_static = { version = "1.5.0", default-features = false }
 pollster = { version = "0.4.0", default-features = false }
 wgpu = { version = "27.0.1", default-features = false, features = ["wgsl", "vulkan"] }
 winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "x11"] }
