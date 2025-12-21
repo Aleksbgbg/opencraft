@@ -7,6 +7,7 @@ mod game;
 mod platform;
 mod windowing;
 
+use crate::core::math::vec2::Vec2;
 use crate::core::type_conversions::CoerceLossy;
 use crate::game::Game;
 use crate::platform::error;
@@ -220,7 +221,7 @@ impl ApplicationHandler<AppEvent> for App {
       DeviceEvent::MouseMotion { delta: (x, y) } => {
         cursor_lock.update_position(window);
 
-        game.motion(x.coerce_lossy(), y.coerce_lossy());
+        game.motion(Vec2::new(x.coerce_lossy(), y.coerce_lossy()));
       }
       _ => {}
     }

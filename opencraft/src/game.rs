@@ -4,6 +4,7 @@ use crate::core::math::aligned_box3::{AlignedBox3, BoxFace};
 use crate::core::math::angle::{Angle, FULL_ROTATION};
 use crate::core::math::mat4::Mat4x4;
 use crate::core::math::segment3::Segment3;
+use crate::core::math::vec2::Vec2;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS, mat4};
 use crate::core::type_conversions::{Coerce, CoerceLossy};
@@ -259,16 +260,16 @@ struct Quad {
   bot: f32,
 }
 
-fn calculate_crosshair_quad(screen_width: f32, screen_height: f32, crosshair_size: u32) -> Quad {
+fn calculate_crosshair_quad(screen_size: Vec2, crosshair_size: u32) -> Quad {
   const WIDTH_FRACTION: f32 = 0.008;
 
-  let size_pixels = (WIDTH_FRACTION * screen_width).ceil().coerce_lossy();
+  let size_pixels = (WIDTH_FRACTION * screen_size.x()).ceil().coerce_lossy();
   let size_pixels = math::align(size_pixels, crosshair_size.coerce());
 
   let (pixels_left, pixels_right) = math::split(size_pixels.coerce_lossy());
 
-  let (width_left, width_right) = math::split(screen_width);
-  let (height_top, height_bot) = math::split(screen_height);
+  let (width_left, width_right) = math::split(screen_size.x());
+  let (height_top, height_bot) = math::split(screen_size.y());
 
   Quad {
     left: -(pixels_left / width_left),
@@ -864,8 +865,7 @@ impl Game {
     let crosshair_quad_buffer = device.create_buffer_init(&BufferInitDescriptor {
       label: Some("Crosshair Normalised Size Buffer"),
       contents: calculate_crosshair_quad(
-        config.width.coerce_lossy(),
-        config.height.coerce_lossy(),
+        Vec2::new(config.width.coerce_lossy(), config.height.coerce_lossy()),
         crosshair_width,
       )
       .as_bytes(),
@@ -1009,6 +1009,13 @@ impl Game {
     })
   }
 
+  fn screen_size(&self) -> Vec2 {
+    Vec2::new(
+      self.config.width.coerce_lossy(),
+      self.config.height.coerce_lossy(),
+    )
+  }
+
   pub fn resize(&mut self, PhysicalSize { width, height }: PhysicalSize<u32>) {
     assert!(
       (width != 0) && (height != 0),
@@ -1033,8 +1040,7 @@ impl Game {
       &self.crosshair_quad_buffer,
       0,
       calculate_crosshair_quad(
-        width.coerce_lossy(),
-        height.coerce_lossy(),
+        Vec2::new(width.coerce_lossy(), height.coerce_lossy()),
         self.crosshair_size,
       )
       .as_bytes(),
@@ -1063,18 +1069,14 @@ impl Game {
     self.mouse_buttons_released.insert(button);
   }
 
-  pub fn motion(&mut self, x: f32, y: f32) {
+  pub fn motion(&mut self, direction: Vec2) {
     const MOVEMENT_SPEED: Angle = FULL_ROTATION;
 
-    let width = self.config.width.coerce_lossy();
-    let height = self.config.height.coerce_lossy();
-
-    let delta_x = x / width;
-    let delta_y = y / height;
+    let delta = direction.normalise_components_to(self.screen_size());
 
     self
       .camera
-      .rotate(MOVEMENT_SPEED * delta_x, MOVEMENT_SPEED * delta_y);
+      .rotate(MOVEMENT_SPEED * delta.x(), MOVEMENT_SPEED * delta.y());
   }
 
   fn update(&mut self, delta: Duration) {
