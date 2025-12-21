@@ -45,8 +45,6 @@ impl AlignedBox3 {
       BoxFace::Front,
     ];
 
-    let mut best_face = None;
-    let mut best_match = f32::MAX;
     for face in FACES {
       let normal = face.normal();
       let direction_match = Vec3::dot(segment.direction(), normal);
@@ -55,33 +53,30 @@ impl AlignedBox3 {
         continue;
       }
 
-      if direction_match < best_match
-        && segment.intersects_cube_face(
-          self.center + (self.extent * normal),
-          self.extent,
-          match face {
-            BoxFace::Left | BoxFace::Right => Vec3::x,
-            BoxFace::Top | BoxFace::Bottom => Vec3::y,
-            BoxFace::Back | BoxFace::Front => Vec3::z,
-          },
-          match face {
-            BoxFace::Left | BoxFace::Right => Vec3::y,
-            BoxFace::Top | BoxFace::Bottom => Vec3::x,
-            BoxFace::Back | BoxFace::Front => Vec3::x,
-          },
-          match face {
-            BoxFace::Left | BoxFace::Right => Vec3::z,
-            BoxFace::Top | BoxFace::Bottom => Vec3::z,
-            BoxFace::Back | BoxFace::Front => Vec3::y,
-          },
-        )
-      {
-        best_face = Some(face);
-        best_match = direction_match;
+      if segment.intersects_cube_face(
+        self.center + (self.extent * normal),
+        self.extent,
+        match face {
+          BoxFace::Left | BoxFace::Right => Vec3::x,
+          BoxFace::Top | BoxFace::Bottom => Vec3::y,
+          BoxFace::Back | BoxFace::Front => Vec3::z,
+        },
+        match face {
+          BoxFace::Left | BoxFace::Right => Vec3::y,
+          BoxFace::Top | BoxFace::Bottom => Vec3::x,
+          BoxFace::Back | BoxFace::Front => Vec3::x,
+        },
+        match face {
+          BoxFace::Left | BoxFace::Right => Vec3::z,
+          BoxFace::Top | BoxFace::Bottom => Vec3::z,
+          BoxFace::Back | BoxFace::Front => Vec3::y,
+        },
+      ) {
+        return Some(face);
       }
     }
 
-    best_face
+    None
   }
 }
 
