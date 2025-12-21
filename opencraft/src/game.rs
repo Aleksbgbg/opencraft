@@ -1270,7 +1270,7 @@ impl Game {
     self.target_cube_index_face = None;
     let mut min_dist = f32::MAX;
     for (index, block) in self.blocks.iter().enumerate() {
-      if let Some(face) = AlignedBox3::cube(*block, CUBE_HALF).intersect_with(&reach) {
+      if let Some(face) = AlignedBox3::cube(*block, CUBE_HALF).find_intersecting_face(&reach) {
         let dist = Vec3::dist_sq(position, *block);
 
         if dist < min_dist {

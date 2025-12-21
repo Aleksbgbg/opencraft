@@ -35,7 +35,7 @@ impl AlignedBox3 {
     Self { center, extent }
   }
 
-  pub fn intersect_with(&self, segment: &Segment3) -> Option<BoxFace> {
+  pub fn find_intersecting_face(&self, segment: &Segment3) -> Option<BoxFace> {
     const FACES: [BoxFace; 6] = [
       BoxFace::Left,
       BoxFace::Right,
@@ -100,7 +100,7 @@ mod tests {
       5.0,
     );
 
-    let face = cube.intersect_with(&segment);
+    let face = cube.find_intersecting_face(&segment);
 
     assert_eq!(Some(BoxFace::Right), face);
   }

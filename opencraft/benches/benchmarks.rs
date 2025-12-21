@@ -17,7 +17,7 @@ fn intersect_base_cube(bencher: Bencher) {
 
   bencher.bench_local(move || {
     for segment in &segments {
-      black_box(black_box(&cube).intersect_with(black_box(&segment)));
+      black_box(black_box(&cube).find_intersecting_face(black_box(&segment)));
     }
   });
 }
