@@ -17,6 +17,7 @@ use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
+use wgpu::wgt::TextureDataOrder;
 use wgpu::{
   Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
   BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
@@ -24,14 +25,14 @@ use wgpu::{
   CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Device,
   DeviceDescriptor, ExperimentalFeatures, Extent3d, Face, Features, FragmentState, FrontFace,
   Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MultisampleState, Operations,
-  Origin3d, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode, PowerPreference,
-  PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
+  PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode,
+  PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
   RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
   RequestAdapterOptions, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
-  StencilState, StoreOp, Surface, SurfaceConfiguration, TexelCopyBufferLayout,
-  TexelCopyTextureInfo, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat,
-  TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
-  Trace, VertexBufferLayout, VertexState, VertexStepMode, include_wgsl, vertex_attr_array,
+  StencilState, StoreOp, Surface, SurfaceConfiguration, TextureDescriptor, TextureDimension,
+  TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
+  TextureViewDimension, Trace, VertexBufferLayout, VertexState, VertexStepMode, include_wgsl,
+  vertex_attr_array,
 };
 use winit::dpi::PhysicalSize;
 use winit::event::MouseButton;
@@ -458,36 +459,24 @@ impl Game {
     let grass_rgba = grass_image.to_rgba8();
     let (grass_width, grass_height) = grass_image.dimensions();
 
-    let grass_size = Extent3d {
-      width: grass_width,
-      height: grass_height,
-      depth_or_array_layers: 1,
-    };
-    let grass_texture = device.create_texture(&TextureDescriptor {
-      label: Some("Grass Texture"),
-      size: grass_size,
-      mip_level_count: 1,
-      sample_count: 1,
-      dimension: TextureDimension::D2,
-      format: TextureFormat::Rgba8UnormSrgb,
-      usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-      view_formats: &[],
-    });
-
-    queue.write_texture(
-      TexelCopyTextureInfo {
-        texture: &grass_texture,
-        mip_level: 0,
-        origin: Origin3d::ZERO,
-        aspect: TextureAspect::All,
+    let grass_texture = device.create_texture_with_data(
+      &queue,
+      &TextureDescriptor {
+        label: Some("Grass Texture"),
+        size: Extent3d {
+          width: grass_width,
+          height: grass_height,
+          depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Rgba8UnormSrgb,
+        usage: TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
       },
+      TextureDataOrder::default(),
       &grass_rgba,
-      TexelCopyBufferLayout {
-        offset: 0,
-        bytes_per_row: Some(4 * grass_size.width),
-        rows_per_image: Some(grass_size.height),
-      },
-      grass_size,
     );
 
     let grass_texture_view = grass_texture.create_view(&TextureViewDescriptor::default());
@@ -852,36 +841,24 @@ impl Game {
     let crosshair_alpha = crosshair_image.to_luma8();
     let (crosshair_width, crosshair_height) = crosshair_image.dimensions();
 
-    let crosshair_size = Extent3d {
-      width: crosshair_width,
-      height: crosshair_height,
-      depth_or_array_layers: 1,
-    };
-    let crosshair_texture = device.create_texture(&TextureDescriptor {
-      label: Some("Crosshair Alpha Texture"),
-      size: crosshair_size,
-      mip_level_count: 1,
-      sample_count: 1,
-      dimension: TextureDimension::D2,
-      format: TextureFormat::R8Unorm,
-      usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-      view_formats: &[],
-    });
-
-    queue.write_texture(
-      TexelCopyTextureInfo {
-        texture: &crosshair_texture,
-        mip_level: 0,
-        origin: Origin3d::ZERO,
-        aspect: TextureAspect::All,
+    let crosshair_texture = device.create_texture_with_data(
+      &queue,
+      &TextureDescriptor {
+        label: Some("Crosshair Alpha Texture"),
+        size: Extent3d {
+          width: crosshair_width,
+          height: crosshair_height,
+          depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::R8Unorm,
+        usage: TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
       },
+      TextureDataOrder::default(),
       &crosshair_alpha,
-      TexelCopyBufferLayout {
-        offset: 0,
-        bytes_per_row: Some(crosshair_size.width),
-        rows_per_image: Some(crosshair_size.height),
-      },
-      crosshair_size,
     );
 
     let crosshair_quad_buffer = device.create_buffer_init(&BufferInitDescriptor {
