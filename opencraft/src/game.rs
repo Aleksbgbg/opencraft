@@ -413,16 +413,16 @@ impl Game {
     let adapter = instance
       .request_adapter(&RequestAdapterOptions {
         power_preference: PowerPreference::default(),
-        compatible_surface: Some(&surface),
         force_fallback_adapter: false,
+        compatible_surface: Some(&surface),
       })
       .await?;
 
     let (device, queue) = adapter
       .request_device(&DeviceDescriptor {
+        label: None,
         required_features: Features::empty(),
         required_limits: Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
-        label: None,
         experimental_features: ExperimentalFeatures::disabled(),
         memory_hints: MemoryHints::Performance,
         trace: Trace::Off,
@@ -443,9 +443,9 @@ impl Game {
       width: size.width,
       height: size.height,
       present_mode: PresentMode::AutoVsync,
+      desired_maximum_frame_latency: 3,
       alpha_mode: capabilities.alpha_modes[0],
       view_formats: Vec::new(),
-      desired_maximum_frame_latency: 3,
     };
 
     surface.configure(&device, &config);
@@ -1219,8 +1219,8 @@ impl Game {
           }),
           stencil_ops: None,
         }),
-        occlusion_query_set: None,
         timestamp_writes: None,
+        occlusion_query_set: None,
       });
 
       render_pass.set_pipeline(&self.skybox_pipeline);
@@ -1258,8 +1258,8 @@ impl Game {
           },
         })],
         depth_stencil_attachment: None,
-        occlusion_query_set: None,
         timestamp_writes: None,
+        occlusion_query_set: None,
       });
 
       render_pass.set_pipeline(&self.fullscreen_copy_pipeline);
