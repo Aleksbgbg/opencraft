@@ -17,10 +17,6 @@ pub struct Camera {
 }
 
 impl Camera {
-  pub fn new() -> Self {
-    Self::default()
-  }
-
   pub fn position(&self) -> Vec3 {
     self.position
   }

@@ -4,6 +4,7 @@
 mod camera;
 pub mod core;
 mod game;
+mod model;
 mod platform;
 mod resources;
 mod text;
