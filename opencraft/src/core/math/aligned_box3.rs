@@ -1,3 +1,4 @@
+use crate::core::math;
 use crate::core::math::segment3::Segment3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
@@ -53,30 +54,55 @@ impl AlignedBox3 {
         continue;
       }
 
-      if segment.intersects_cube_face(
-        self.center + (self.extent * normal),
-        self.extent,
-        match face {
-          BoxFace::Left | BoxFace::Right => Vec3::x,
-          BoxFace::Top | BoxFace::Bottom => Vec3::y,
-          BoxFace::Back | BoxFace::Front => Vec3::z,
-        },
-        match face {
-          BoxFace::Left | BoxFace::Right => Vec3::y,
-          BoxFace::Top | BoxFace::Bottom => Vec3::x,
-          BoxFace::Back | BoxFace::Front => Vec3::x,
-        },
-        match face {
-          BoxFace::Left | BoxFace::Right => Vec3::z,
-          BoxFace::Top | BoxFace::Bottom => Vec3::z,
-          BoxFace::Back | BoxFace::Front => Vec3::y,
-        },
-      ) {
+      if self.intersects_box_face(face, segment) {
         return Some(face);
       }
     }
 
     None
+  }
+
+  fn intersects_box_face(&self, face: BoxFace, segment: &Segment3) -> bool {
+    let (axis_0, axis_1, axis_2) = match face {
+      BoxFace::Left | BoxFace::Right => (X_AXIS, Y_AXIS, Z_AXIS),
+      BoxFace::Top | BoxFace::Bottom => (Y_AXIS, Z_AXIS, X_AXIS),
+      BoxFace::Back | BoxFace::Front => (Z_AXIS, X_AXIS, Y_AXIS),
+    };
+
+    let start = segment.start();
+    let end = segment.end();
+    let start_a0 = Vec3::dot(start, axis_0);
+    let end_a0 = Vec3::dot(end, axis_0);
+
+    let face_center = self.center + (face.normal() * self.extent);
+    let face_center_a0 = Vec3::dot(face_center, axis_0);
+
+    let (min_a0, max_a0) = math::min_max(start_a0, end_a0);
+    if !math::in_range(face_center_a0, min_a0, max_a0) {
+      return false;
+    }
+
+    let direction = segment.direction();
+    let direction_a0 = Vec3::dot(direction, axis_0);
+
+    let t = (face_center_a0 - start_a0) / direction_a0;
+    let p = start + (t * direction);
+
+    let p_a1 = Vec3::dot(p, axis_1);
+    let face_center_a1 = Vec3::dot(face_center, axis_1);
+
+    let p_a2 = Vec3::dot(p, axis_2);
+    let face_center_a2 = Vec3::dot(face_center, axis_2);
+
+    math::in_range(
+      p_a1,
+      face_center_a1 - self.extent,
+      face_center_a1 + self.extent,
+    ) && math::in_range(
+      p_a2,
+      face_center_a2 - self.extent,
+      face_center_a2 + self.extent,
+    )
   }
 }
 
