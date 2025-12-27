@@ -1245,7 +1245,7 @@ impl Game {
           resolve_target: None,
           ops: Operations {
             load: LoadOp::Clear(Color::TRANSPARENT),
-            store: StoreOp::Discard,
+            store: StoreOp::Store,
           },
         })],
         depth_stencil_attachment: None,
