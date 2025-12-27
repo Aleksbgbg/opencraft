@@ -106,10 +106,11 @@ fn chunk_mesh_generate_slow(bencher: Bencher) {
     Arc::new(AllGrass),
     HashMap::default(),
   );
+  let texture_atlas = TextureAtlas::grass_only();
 
   bencher.bench_local(move || {
     let mut mesh = ChunkMesh::generate(black_box(&chunk));
-    black_box(mesh.generate_vertices(&TextureAtlas {}));
+    black_box(mesh.generate_vertices(black_box(&texture_atlas), black_box(&chunk)));
   });
 }
 
@@ -121,10 +122,11 @@ fn chunk_mesh_update_incremental_slow(bencher: Bencher) {
     HashMap::default(),
   );
   let mut mesh = ChunkMesh::generate(&chunk);
+  let texture_atlas = TextureAtlas::grass_only();
 
   bencher.bench_local(move || {
     black_box(&mut mesh).update_incremental(black_box(&chunk), black_box(BlockPosition::default()));
-    black_box(mesh.generate_vertices(&TextureAtlas {}));
+    black_box(mesh.generate_vertices(black_box(&texture_atlas), black_box(&chunk)));
   });
 }
 

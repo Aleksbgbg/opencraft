@@ -113,6 +113,7 @@ fn generate_face_mesh(
   vertices: &mut Vec<Vertex>,
   texture_atlas: &TextureAtlas,
   block_position: BlockPosition,
+  block: Block,
   face: BoxFace,
 ) {
   const FACE_VERTICES: usize = 6;
@@ -124,7 +125,7 @@ fn generate_face_mesh(
 
   let new_vertices_start = vertices.len() - FACE_VERTICES;
   let world_position = layout::block_to_world(block_position);
-  let texture_quad = texture_atlas.generate_texture_coordinates(face);
+  let texture_quad = texture_atlas.generate_texture_coordinates(block, face);
 
   for (index, vertex) in vertices[new_vertices_start..].iter_mut().enumerate() {
     vertex.position[0] += world_position.x();
@@ -196,12 +197,18 @@ impl ChunkMesh {
     }
   }
 
-  pub fn generate_vertices(&mut self, texture_atlas: &TextureAtlas) -> Vec<Vertex> {
+  pub fn generate_vertices(&mut self, texture_atlas: &TextureAtlas, chunk: &Chunk) -> Vec<Vertex> {
     let mut vertices = Vec::with_capacity(self.last_vertices_len);
 
     for (&block_position, face_set) in &self.faces {
       for face in face_set.faces() {
-        generate_face_mesh(&mut vertices, texture_atlas, block_position, face);
+        generate_face_mesh(
+          &mut vertices,
+          texture_atlas,
+          block_position,
+          chunk.get(block_position),
+          face,
+        );
       }
     }
 

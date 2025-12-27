@@ -229,7 +229,7 @@ impl Model {
           .chunks
           .get_mut(&chunk_position)
           .unwrap()
-          .place_block(block_position, Block::Grass);
+          .place_block(block_position, Block::Stone);
 
         self.created_blocks.push((chunk_position, block_position));
       }

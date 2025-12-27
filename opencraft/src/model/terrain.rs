@@ -10,8 +10,12 @@ pub struct ClassicFlat;
 
 impl Generate for ClassicFlat {
   fn generate(&self, block: BlockPosition) -> Block {
-    if math::in_range(block.y(), -3, 0) {
+    if block.y() == 0 {
       Block::Grass
+    } else if math::in_range(block.y(), -2, -1) {
+      Block::Dirt
+    } else if block.y() == -3 {
+      Block::Bedrock
     } else {
       Block::Air
     }

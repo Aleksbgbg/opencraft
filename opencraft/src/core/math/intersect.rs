@@ -6,7 +6,7 @@ use crate::core::math::vec3::Vec3;
 use crate::core::math::{Direction, X_AXIS, Y_AXIS, Z_AXIS};
 use strum::{EnumCount, EnumIter, IntoEnumIterator};
 
-#[derive(Debug, Clone, Copy, PartialEq, EnumCount, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumCount, EnumIter)]
 pub enum BoxFace {
   XPos,
   XNeg,

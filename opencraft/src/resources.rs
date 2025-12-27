@@ -9,6 +9,9 @@ const MONOCRAFT_WOFF2_PATH: &str = "fonts/monocraft_v4.2.1.woff2";
 
 #[derive(Clone, Copy)]
 pub enum Texture {
+  Bedrock,
+  Stone,
+  Dirt,
   Grass,
   Crosshair,
 }
@@ -16,6 +19,9 @@ pub enum Texture {
 impl Texture {
   fn path(self) -> &'static str {
     match self {
+      Texture::Bedrock => "textures/block/bedrock.png",
+      Texture::Stone => "textures/block/stone.png",
+      Texture::Dirt => "textures/block/dirt.png",
       Texture::Grass => "textures/block/grass.png",
       Texture::Crosshair => "textures/ui/crosshair.png",
     }
