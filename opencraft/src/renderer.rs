@@ -2,7 +2,6 @@ mod font_atlas;
 mod text_encoder;
 
 use crate::camera::Direction;
-use crate::core;
 use crate::core::math;
 use crate::core::math::angle::Angle;
 use crate::core::math::mat4;
@@ -14,6 +13,7 @@ use crate::platform::ResourceReader;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
 use crate::renderer::text_encoder::{Anchor, TextEncoder};
 use crate::resources::Texture;
+use crate::{core, platform};
 use anyhow::Result;
 use image::GenericImageView;
 use std::sync::{Arc, LazyLock};
@@ -358,6 +358,8 @@ impl ScreenSpaceResources {
 }
 
 pub struct Renderer {
+  graphics_backend_string: &'static str,
+
   font_atlas: FontAtlas,
 
   surface: Surface<'static>,
@@ -1074,6 +1076,7 @@ impl Renderer {
     );
 
     Ok(Self {
+      graphics_backend_string: platform::get_graphics_backend_string(adapter.get_info().backend),
       font_atlas,
       surface,
       device,
@@ -1259,6 +1262,14 @@ impl Renderer {
           )],
           Anchor {
             left: Some(5),
+            top: Some(5),
+            ..Default::default()
+          },
+        );
+        text_encoder.push_text_block(
+          &[self.graphics_backend_string],
+          Anchor {
+            right: Some(5),
             top: Some(5),
             ..Default::default()
           },

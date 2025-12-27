@@ -6,6 +6,7 @@ use log::Level;
 use std::time::Duration;
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::Window;
+use wgpu::Backend;
 use winit::platform::web::WindowAttributesExtWebSys;
 use winit::window::WindowAttributes;
 
@@ -57,6 +58,14 @@ pub async fn sleep(duration: Duration) {
   }
 
   TimeoutFuture::new(duration.as_millis().try_into().unwrap_throw()).await
+}
+
+pub fn get_graphics_backend_string(backend: Backend) -> &'static str {
+  match backend {
+    Backend::Gl => "WebGL2",
+    Backend::BrowserWebGpu => "WebGPU",
+    Backend::Noop | Backend::Vulkan | Backend::Metal | Backend::Dx12 => unreachable!(),
+  }
 }
 
 pub struct ResourceReader {

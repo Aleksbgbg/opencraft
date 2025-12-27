@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use std::path::PathBuf;
 use std::time::Duration;
 use std::{env, fs, thread};
+use wgpu::Backend;
 use winit::window::WindowAttributes;
 
 #[rustfmt::skip]
@@ -37,6 +38,16 @@ where
 // blocking sleep is not a problem.
 pub async fn sleep(duration: Duration) {
   thread::sleep(duration)
+}
+
+pub fn get_graphics_backend_string(backend: Backend) -> &'static str {
+  match backend {
+    Backend::Vulkan => "Vulkan",
+    Backend::Metal => "Metal",
+    Backend::Dx12 => "DirectX 12",
+    Backend::Gl => "OpenGL",
+    Backend::Noop | Backend::BrowserWebGpu => unreachable!(),
+  }
 }
 
 pub struct ResourceReader {
