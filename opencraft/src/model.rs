@@ -44,6 +44,7 @@ pub struct Model {
 
   player_camera: Camera,
 
+  cached_modifications: HashMap<ChunkPosition, HashMap<BlockPosition, Block>>,
   chunks: HashMap<ChunkPosition, Chunk>,
   unloaded_chunks: Vec<ChunkPosition>,
   loaded_chunks: Vec<ChunkPosition>,
@@ -60,7 +61,10 @@ impl Model {
     let mut chunks = HashMap::with_capacity(VISIBLE_CHUNKS_USIZE);
     let loaded_chunks = iterators::surrounding_chunks(player_camera.position()).collect();
     for &chunk_position in &loaded_chunks {
-      chunks.insert(chunk_position, Chunk::load(chunk_position));
+      chunks.insert(
+        chunk_position,
+        Chunk::load(chunk_position, HashMap::default()),
+      );
     }
 
     Self {
@@ -68,6 +72,7 @@ impl Model {
       frame_times: Default::default(),
       frame_time_stale_index: Default::default(),
       player_camera,
+      cached_modifications: Default::default(),
       chunks,
       unloaded_chunks: Default::default(),
       loaded_chunks,
@@ -139,14 +144,25 @@ impl Model {
         iterators::chunk_difference(position_before, position_after)
       {
         for chunk_position in unloaded_chunks {
-          self.chunks.remove(&chunk_position);
+          let chunk = self.chunks.remove(&chunk_position).unwrap();
+          let chunk_modifications = chunk.unload();
+          if !chunk_modifications.is_empty() {
+            self
+              .cached_modifications
+              .insert(chunk_position, chunk_modifications);
+          }
 
           self.unloaded_chunks.push(chunk_position);
         }
         for chunk_position in loaded_chunks {
-          self
-            .chunks
-            .insert(chunk_position, Chunk::load(chunk_position));
+          let chunk_modifications = self
+            .cached_modifications
+            .remove(&chunk_position)
+            .unwrap_or_default();
+          self.chunks.insert(
+            chunk_position,
+            Chunk::load(chunk_position, chunk_modifications),
+          );
 
           self.loaded_chunks.push(chunk_position);
         }
