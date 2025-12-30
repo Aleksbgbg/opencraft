@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
   "base",
+  "blockgen",
   "opencraft",
   "static-file-server",
 ]
