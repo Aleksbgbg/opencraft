@@ -1,0 +1,77 @@
+[[plain.palette]]
+colour.r = 126
+colour.g = 126
+colour.b = 126
+frequency = 4
+
+[[plain.palette]]
+colour.r = 101
+colour.g = 101
+colour.b = 101
+frequency = 3
+
+[[plain.palette]]
+colour.r = 108
+colour.g = 82
+colour.b = 63
+frequency = 1
+
+[[plain.palette]]
+colour.r = 172
+colour.g = 124
+colour.b = 86
+frequency = 40
+
+[[plain.palette]]
+colour.r = 140
+colour.g = 101
+colour.b = 69
+frequency = 84
+
+[[plain.palette]]
+colour.r = 113
+colour.g = 79
+colour.b = 54
+frequency = 84
+
+[[plain.palette]]
+colour.r = 83
+colour.g = 57
+colour.b = 38
+frequency = 40
+
+[seed]
+value = [
+  0x12,
+  0xe9,
+  0x6f,
+  0xa7,
+  0xe6,
+  0x3d,
+  0xb4,
+  0x08,
+  0x0d,
+  0xf7,
+  0x4d,
+  0xa7,
+  0xae,
+  0x9e,
+  0x9b,
+  0x8e,
+  0x43,
+  0x66,
+  0x11,
+  0x0d,
+  0xb9,
+  0x55,
+  0x47,
+  0xe7,
+  0x36,
+  0x88,
+  0x86,
+  0x3e,
+  0x55,
+  0xe5,
+  0x4b,
+  0xf4,
+]
