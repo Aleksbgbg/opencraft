@@ -18,27 +18,27 @@ harness = false
 
 [dependencies]
 anyhow = { version = "1.0.100", default-features = false, features = ["backtrace", "std"] }
-derive_more = { version = "2.0.1", default-features = false, features = ["add", "add_assign", "mul", "mul_assign", "not"] }
+derive_more = { version = "2.1.1", default-features = false, features = ["add", "add_assign", "mul", "mul_assign", "not"] }
 env_logger = { version = "0.11.8", default-features = false, features = ["auto-color"] }
-image = { version = "0.25.8", default-features = false, features = ["png"] }
+image = { version = "0.25.9", default-features = false, features = ["png"] }
 pollster = { version = "0.4.0", default-features = false }
 rusttype = { version = "0.9.3", default-features = false, features = ["std"] }
-wgpu = { version = "27.0.1", default-features = false, features = ["wgsl", "vulkan"] }
+wgpu = { version = "28.0.0", default-features = false, features = ["wgsl", "vulkan"] }
 winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "x11"] }
 wuff = { version = "0.2.3", default-features = false, features = ["brotli"] }
-zerocopy = { version = "0.8.27", default-features = false, features = ["derive"] }
+zerocopy = { version = "0.8.31", default-features = false, features = ["derive"] }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 console_error_panic_hook = { version = "0.1.7", default-features = false }
 console_log = { version = "1.0.0", default-features = false }
 gloo-timers = { version = "0.3.0", default-features = false, features = ["futures"] }
-log = { version = "0.4.28", default-features = false }
-reqwest = { version = "0.12.24", default-features = false }
-wasm-bindgen = { version = "0.2.105", default-features = false }
-wasm-bindgen-futures = { version = "0.4.55", default-features = false }
-web-sys = { version = "0.3.82", default-features = false, features = ["Location", "Window"] }
+log = { version = "0.4.29", default-features = false }
+reqwest = { version = "0.13.1", default-features = false }
+wasm-bindgen = { version = "0.2.106", default-features = false }
+wasm-bindgen-futures = { version = "0.4.56", default-features = false }
+web-sys = { version = "0.3.83", default-features = false, features = ["Location", "Window"] }
 web-time = { version = "1.1.0", default-features = false }
-wgpu = { version = "27.0.1", default-features = false, features = ["webgl"] }
+wgpu = { version = "28.0.0", default-features = false, features = ["webgl"] }
 
 [dev-dependencies]
 divan = "0.1.21"

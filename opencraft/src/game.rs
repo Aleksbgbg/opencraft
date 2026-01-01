@@ -563,7 +563,7 @@ impl Game {
     let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Render Pipeline Layout"),
       bind_group_layouts: &[&transform_buffer_layout, &grass_bind_group_layout],
-      push_constant_ranges: &[],
+      immediate_size: 0,
     });
     let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
       label: Some("Render Pipeline"),
@@ -609,7 +609,7 @@ impl Game {
         mask: !0,
         alpha_to_coverage_enabled: false,
       },
-      multiview: None,
+      multiview_mask: None,
       cache: None,
     });
 
@@ -652,7 +652,7 @@ impl Game {
     let outline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Render Pipeline Layout"),
       bind_group_layouts: &[&outline_transform_buffer_layout],
-      push_constant_ranges: &[],
+      immediate_size: 0,
     });
     let outline_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
       label: Some("Render Pipeline"),
@@ -698,7 +698,7 @@ impl Game {
         mask: !0,
         alpha_to_coverage_enabled: false,
       },
-      multiview: None,
+      multiview_mask: None,
       cache: None,
     });
 
@@ -735,7 +735,7 @@ impl Game {
     let skybox_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Skybox Render Pipeline Layout"),
       bind_group_layouts: &[&skybox_transform_buffer_layout],
-      push_constant_ranges: &[],
+      immediate_size: 0,
     });
     let skybox_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
       label: Some("Skybox Render Pipeline"),
@@ -781,7 +781,7 @@ impl Game {
         mask: !0,
         alpha_to_coverage_enabled: false,
       },
-      multiview: None,
+      multiview_mask: None,
       cache: None,
     });
 
@@ -810,7 +810,7 @@ impl Game {
     let fullscreen_copy_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Fullscreen Copy Render Pipeline Layout"),
       bind_group_layouts: &[&fullscreen_copy_texture_bind_group_layout],
-      push_constant_ranges: &[],
+      immediate_size: 0,
     });
     let fullscreen_copy_shader =
       device.create_shader_module(include_wgsl!("shaders/fullscreen_copy.wgsl"));
@@ -848,7 +848,7 @@ impl Game {
         mask: !0,
         alpha_to_coverage_enabled: false,
       },
-      multiview: None,
+      multiview_mask: None,
       cache: None,
     });
 
@@ -942,7 +942,7 @@ impl Game {
         &fullscreen_copy_texture_bind_group_layout,
         &crosshair_bind_group_layout,
       ],
-      push_constant_ranges: &[],
+      immediate_size: 0,
     });
     let crosshair_shader = device.create_shader_module(include_wgsl!("shaders/crosshair.wgsl"));
     let crosshair_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -979,7 +979,7 @@ impl Game {
         mask: !0,
         alpha_to_coverage_enabled: false,
       },
-      multiview: None,
+      multiview_mask: None,
       cache: None,
     });
 
@@ -1045,7 +1045,7 @@ impl Game {
     let text_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Text Render Pipeline Layout"),
       bind_group_layouts: &[&text_bind_group_layout],
-      push_constant_ranges: &[],
+      immediate_size: 0,
     });
     let text_shader = device.create_shader_module(include_wgsl!("shaders/text.wgsl"));
     let text_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -1086,7 +1086,7 @@ impl Game {
         mask: !0,
         alpha_to_coverage_enabled: false,
       },
-      multiview: None,
+      multiview_mask: None,
       cache: None,
     });
 
@@ -1341,6 +1341,7 @@ impl Game {
         }),
         timestamp_writes: None,
         occlusion_query_set: None,
+        multiview_mask: None,
       });
 
       render_pass.set_pipeline(&self.skybox_pipeline);
@@ -1380,6 +1381,7 @@ impl Game {
         depth_stencil_attachment: None,
         timestamp_writes: None,
         occlusion_query_set: None,
+        multiview_mask: None,
       });
 
       render_pass.set_pipeline(&self.fullscreen_copy_pipeline);
