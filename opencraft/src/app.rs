@@ -6,6 +6,7 @@ pub mod core;
 mod game;
 mod model;
 mod platform;
+mod renderer;
 mod resources;
 mod text;
 mod windowing;
