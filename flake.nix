@@ -44,14 +44,14 @@
       wasm-bindgen-cli = pkgs.buildWasmBindgenCli rec {
         src = pkgs.fetchCrate {
           pname = "wasm-bindgen-cli";
-          version = "0.2.105";
-          hash = "sha256-zLPFFgnqAWq5R2KkaTGAYqVQswfBEYm9x3OPjx8DJRY=";
+          version = "0.2.106";
+          hash = "sha256-M6WuGl7EruNopHZbqBpucu4RWz44/MSdv6f0zkYw+44=";
         };
 
         cargoDeps = rustPlatform.fetchCargoVendor {
           inherit src;
           inherit (src) pname version;
-          hash = "sha256-a2X9bzwnMWNt0fTf30qAiJ4noal/ET1jEtf5fBFj5OU=";
+          hash = "sha256-ElDatyOwdKwHg3bNH/1pcxKI7LXkhsotlDPQjiLHBwA=";
         };
       };
     in {
@@ -134,6 +134,7 @@
           description = "browser-runnable video game Opencraft";
           cfg = config.services.opencraft;
           runtimeFilesDir = "/var/run/${packageName}";
+          platform = pkgs.stdenv.hostPlatform;
         in {
           options.services.opencraft.enable = mkEnableOption description;
 
@@ -147,7 +148,7 @@
             systemd.tmpfiles.rules = [
               # Type Path Mode User Group Age Argument
               "d ${runtimeFilesDir} 0755 ${packageName} ${packageName} - -"
-              "L+ ${runtimeFilesDir}/frontend - - - - ${self.packages.${pkgs.system}.default}"
+              "L+ ${runtimeFilesDir}/frontend - - - - ${self.packages.${platform.system}.default}"
             ];
           };
         };

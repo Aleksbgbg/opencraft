@@ -1,22 +1,18 @@
-use crate::camera::{Camera, Direction};
+use crate::camera::Direction;
 use crate::core;
 use crate::core::math;
-use crate::core::math::aligned_box3::{AlignedBox3, BoxFace};
-use crate::core::math::angle::{Angle, FULL_ROTATION};
+use crate::core::math::angle::Angle;
+use crate::core::math::mat4;
 use crate::core::math::mat4::Mat4x4;
-use crate::core::math::segment3::Segment3;
 use crate::core::math::vec2::Vec2;
-use crate::core::math::vec3::Vec3;
-use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS, mat4};
 use crate::core::type_conversions::{Coerce, CoerceLossy};
-use crate::platform::{Instant, ResourceReader};
+use crate::model::{BLOCK_LIMIT, CUBE_EXTENT, Scene};
+use crate::platform::ResourceReader;
 use crate::resources::Texture;
 use crate::text::{FontAtlas, TextVertex};
 use anyhow::Result;
 use image::GenericImageView;
-use std::collections::HashSet;
 use std::sync::{Arc, LazyLock};
-use std::time::Duration;
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::wgt::TextureDataOrder;
@@ -37,30 +33,21 @@ use wgpu::{
   vertex_attr_array,
 };
 use winit::dpi::PhysicalSize;
-use winit::event::MouseButton;
-use winit::keyboard::KeyCode;
 use winit::window::Window;
 use zerocopy::{Immutable, IntoBytes};
 
 const FONT_SCALE: f32 = 24.0;
-const FRAME_TIME_MEASUREMENTS: usize = 60;
-
-const BLOCK_LIMIT: usize = 256;
 
 static FOV: LazyLock<Angle> = LazyLock::new(|| Angle::degrees(75.0));
 const Z_NEAR: f32 = 0.01;
 const Z_FAR: f32 = 1000.0;
 
-const CUBE_SIZE: f32 = 1.0;
-const CUBE_HALF: f32 = CUBE_SIZE / 2.0;
-const CUBE_TRANSLATE: Vec3 = Vec3::new(0.0, 0.0, 3.0);
-
-const BACK: f32 = CUBE_HALF;
-const FRONT: f32 = -CUBE_HALF;
-const BOTTOM: f32 = -CUBE_HALF;
-const TOP: f32 = CUBE_HALF;
-const LEFT: f32 = -CUBE_HALF;
-const RIGHT: f32 = CUBE_HALF;
+const BACK: f32 = CUBE_EXTENT;
+const FRONT: f32 = -CUBE_EXTENT;
+const BOTTOM: f32 = -CUBE_EXTENT;
+const TOP: f32 = CUBE_EXTENT;
+const LEFT: f32 = -CUBE_EXTENT;
+const RIGHT: f32 = CUBE_EXTENT;
 
 const TEX_WIDTH: f32 = 48.0;
 const TEX_HEIGHT: f32 = 64.0;
@@ -366,22 +353,7 @@ impl ScreenSpaceResources {
   }
 }
 
-pub struct Game {
-  last: Instant,
-
-  camera: Camera,
-
-  keys_down: HashSet<KeyCode>,
-  mouse_buttons_released: HashSet<MouseButton>,
-
-  blocks: Vec<Vec3>,
-
-  target_cube_index_face: Option<(usize, BoxFace)>,
-
-  show_debug_display: bool,
-  frame_times: Vec<Duration>,
-  frame_time_stale_index: usize,
-
+pub struct Renderer {
   font_atlas: FontAtlas,
 
   surface: Surface<'static>,
@@ -419,7 +391,7 @@ pub struct Game {
   text_pipeline: RenderPipeline,
 }
 
-impl Game {
+impl Renderer {
   pub async fn new(window: Arc<Window>) -> Result<Self> {
     let instance = Instance::new(&InstanceDescriptor {
       backends: Backends::all(),
@@ -1098,15 +1070,6 @@ impl Game {
     );
 
     Ok(Self {
-      last: Instant::now(),
-      camera: Camera::new(),
-      keys_down: HashSet::new(),
-      mouse_buttons_released: HashSet::new(),
-      blocks: Vec::from([CUBE_TRANSLATE]),
-      target_cube_index_face: None,
-      show_debug_display: cfg!(debug_assertions),
-      frame_times: Vec::with_capacity(FRAME_TIME_MEASUREMENTS),
-      frame_time_stale_index: 0,
       font_atlas,
       surface,
       device,
@@ -1137,7 +1100,7 @@ impl Game {
     })
   }
 
-  fn screen_size(&self) -> Vec2 {
+  pub fn screen_size(&self) -> Vec2 {
     Vec2::new(
       self.config.width.coerce_lossy(),
       self.config.height.coerce_lossy(),
@@ -1175,137 +1138,24 @@ impl Game {
     );
   }
 
-  pub fn compose(&mut self) -> Result<()> {
-    let elapsed = self.last.elapsed();
-    self.last = Instant::now();
-
-    self.update(elapsed);
-    self.render()?;
-
-    Ok(())
-  }
-
-  pub fn press(&mut self, code: KeyCode) {
-    self.keys_down.insert(code);
-  }
-
-  pub fn release(&mut self, code: KeyCode) {
-    if code == KeyCode::F3 {
-      self.show_debug_display = !self.show_debug_display;
-    }
-
-    self.keys_down.remove(&code);
-  }
-
-  pub fn mouse_release(&mut self, button: MouseButton) {
-    self.mouse_buttons_released.insert(button);
-  }
-
-  pub fn motion(&mut self, direction: Vec2) {
-    const MOVEMENT_SPEED: Angle = FULL_ROTATION;
-
-    let delta = direction.normalise_components_to(self.screen_size());
-
-    self
-      .camera
-      .rotate(MOVEMENT_SPEED * delta.x(), MOVEMENT_SPEED * delta.y());
-  }
-
-  fn update(&mut self, delta: Duration) {
-    const CAMERA_MOVEMENT_SPEED: f32 = 10.0;
-    const REACH_DISTANCE: f32 = 5.0;
-
-    if self.show_debug_display {
-      if self.frame_times.len() < FRAME_TIME_MEASUREMENTS {
-        self.frame_times.push(delta);
-      } else {
-        self.frame_times[self.frame_time_stale_index] = delta;
-        self.frame_time_stale_index = (self.frame_time_stale_index + 1) % FRAME_TIME_MEASUREMENTS;
-      }
-    }
-
-    let delta_secs = delta.as_secs_f32();
-
-    let mut camera_movement = Vec3::default();
-    if self.keys_down.contains(&KeyCode::KeyW) {
-      camera_movement += Z_AXIS;
-    }
-    if self.keys_down.contains(&KeyCode::KeyS) {
-      camera_movement -= Z_AXIS;
-    }
-    if self.keys_down.contains(&KeyCode::KeyA) {
-      camera_movement -= X_AXIS;
-    }
-    if self.keys_down.contains(&KeyCode::KeyD) {
-      camera_movement += X_AXIS;
-    }
-    if self.keys_down.contains(&KeyCode::Space) {
-      camera_movement += Y_AXIS;
-    }
-    if self.keys_down.contains(&KeyCode::ShiftLeft) {
-      camera_movement -= Y_AXIS;
-    }
-    if camera_movement.len_sq() > 0.0 {
-      self
-        .camera
-        .translate(CAMERA_MOVEMENT_SPEED * delta_secs * camera_movement.norm());
-    }
-
-    if let Some((index, face)) = self.target_cube_index_face {
-      if self.mouse_buttons_released.contains(&MouseButton::Left) {
-        self.blocks.swap_remove(index);
-      } else if self.mouse_buttons_released.contains(&MouseButton::Right)
-        && (self.blocks.len() < BLOCK_LIMIT)
-      {
-        let target_block = self.blocks.get(index).unwrap();
-        let next_block = *target_block + (CUBE_SIZE * face.normal());
-
-        self.blocks.push(next_block);
-      }
-    }
-
-    let position = self.camera.position();
-    let reach = Segment3::start_direction_len(position, self.camera.forward(), REACH_DISTANCE);
-
-    self.target_cube_index_face = None;
-    let mut min_dist = f32::MAX;
-    for (index, block) in self.blocks.iter().enumerate() {
-      if let Some(face) = AlignedBox3::cube(*block, CUBE_HALF).find_intersecting_face(&reach) {
-        let dist = Vec3::dist_sq(position, *block);
-
-        if dist < min_dist {
-          self.target_cube_index_face = Some((index, face));
-          min_dist = dist;
-        }
-      }
-    }
-
-    self.mouse_buttons_released.clear();
-  }
-
-  fn render(&mut self) -> Result<()> {
+  pub fn render(&mut self, scene: &Scene<'_>, view_direction: Direction) -> Result<()> {
     let output = self.surface.get_current_texture()?;
     let view = output
       .texture
       .create_view(&TextureViewDescriptor::default());
 
-    let world_to_screen_space = &self.screen.perspective
-      * &self
-        .camera
-        .world_transform(if self.keys_down.contains(&KeyCode::KeyC) {
-          Direction::Backward
-        } else {
-          Direction::Forward
-        });
+    let world_to_screen_space =
+      &self.screen.perspective * &scene.player_camera.world_transform(view_direction);
 
-    let skybox_transform = &world_to_screen_space * &mat4::translate(self.camera.position());
+    let skybox_transform =
+      &world_to_screen_space * &mat4::translate(scene.player_camera.position());
     self.queue.write_buffer(
       &self.skybox_transform_buffer,
       0,
       skybox_transform.as_bytes(),
     );
 
-    let transforms: Vec<Mat4x4> = self
+    let transforms: Vec<Mat4x4> = scene
       .blocks
       .iter()
       .map(|block| &world_to_screen_space * &mat4::translate(*block))
@@ -1352,9 +1202,9 @@ impl Game {
       render_pass.set_pipeline(&self.pipeline);
       render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
-      render_pass.draw(0..VERTICES.len().coerce(), 0..self.blocks.len().coerce());
+      render_pass.draw(0..VERTICES.len().coerce(), 0..scene.blocks.len().coerce());
 
-      if let Some((index, _)) = self.target_cube_index_face {
+      if let Some(index) = scene.target_block_index {
         self.queue.write_buffer(
           &self.outline_transform_buffer,
           0,
@@ -1392,17 +1242,10 @@ impl Game {
       render_pass.set_bind_group(1, &self.crosshair_bind_group, &[]);
       render_pass.draw(0..4, 0..1);
 
-      if self.show_debug_display {
-        let mean_frame_time_ms = self
-          .frame_times
-          .iter()
-          .map(Duration::as_millis_f32)
-          .sum::<f32>()
-          / self.frame_times.len().coerce_lossy();
+      if let Some(debug_display) = &scene.debug_display {
         let fps_text = format!(
           "FPS: {} ({:.3}ms)",
-          (1000.0 / mean_frame_time_ms).round(),
-          mean_frame_time_ms
+          debug_display.frames_per_second, debug_display.mean_frame_time_ms
         );
 
         let mut text_vertices = Vec::new();
