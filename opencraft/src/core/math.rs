@@ -1,6 +1,7 @@
 pub mod aligned_box3;
 pub mod angle;
 pub mod bivec3;
+pub mod frustum3;
 pub mod intersect;
 pub mod mat4;
 pub mod projection;

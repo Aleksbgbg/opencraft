@@ -1,7 +1,12 @@
 use divan::{Bencher, black_box};
 use lopencraft::core::math::aligned_box3::AlignedBox3;
+use lopencraft::core::math::angle::Angle;
+use lopencraft::core::math::frustum3::Frustum3;
 use lopencraft::core::math::intersect::Intersects;
+use lopencraft::core::math::projection::Perspective;
+use lopencraft::core::math::rotor3::Rotor3;
 use lopencraft::core::math::segment3::Segment3;
+use lopencraft::core::math::vec2::Vec2;
 use lopencraft::core::math::vec3::Vec3;
 use lopencraft::model::block::Block;
 use lopencraft::model::chunk::Chunk;
@@ -54,6 +59,34 @@ fn intersects_box_segment_slow(bencher: Bencher) {
 
   bencher.bench_local(move || {
     black_box(black_box(&cube).intersects(black_box(&segment)));
+  });
+}
+
+#[divan::bench]
+fn intersects_frustum_box_slow(bencher: Bencher) {
+  let cube = AlignedBox3::cube(Vec3::new(0.0, 0.0, 5.0), 1.0);
+  let frustum = Frustum3::new(
+    Vec3::new(0.0, 0.0, 0.0),
+    Rotor3::identity(),
+    &Perspective::new(Vec2::new(2560.0, 1440.0), Angle::degrees(110.0), 1.0, 10.0),
+  );
+
+  bencher.bench_local(move || {
+    black_box(black_box(&frustum).intersects(black_box(&cube)));
+  });
+}
+
+#[divan::bench]
+fn intersects_frustum_box_fast(bencher: Bencher) {
+  let cube = AlignedBox3::cube(Vec3::new(0.0, 0.0, 500.0), 1.0);
+  let frustum = Frustum3::new(
+    Vec3::new(0.0, 0.0, 0.0),
+    Rotor3::identity(),
+    &Perspective::new(Vec2::new(2560.0, 1440.0), Angle::degrees(110.0), 1.0, 10.0),
+  );
+
+  bencher.bench_local(move || {
+    black_box(black_box(&frustum).intersects(black_box(&cube)));
   });
 }
 

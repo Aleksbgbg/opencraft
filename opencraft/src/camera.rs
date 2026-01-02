@@ -4,9 +4,17 @@ use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{YZ_PLANE, Z_AXIS, ZX_PLANE, mat4};
 
+#[derive(Clone, Copy)]
 pub enum Direction {
   Forward,
   Backward,
+}
+
+fn transform_rotor_facing(rotor: Rotor3, facing: Direction) -> Rotor3 {
+  match facing {
+    Direction::Forward => rotor,
+    Direction::Backward => Rotor3::angle_plane(HALF_ROTATION, ZX_PLANE) * rotor,
+  }
 }
 
 #[derive(Default)]
@@ -40,6 +48,10 @@ impl Camera {
     self.rotor_yaw() * self.rotor_pitch()
   }
 
+  pub fn rotor_facing(&self, facing: Direction) -> Rotor3 {
+    transform_rotor_facing(self.rotor(), facing)
+  }
+
   pub fn forward(&self) -> Vec3 {
     self.rotor().rotate(Z_AXIS)
   }
@@ -66,11 +78,7 @@ impl Camera {
   /// The camera can be flipped backwards by passing in [`Direction::Backward`]
   /// for the `facing` parameter.
   pub fn world_transform(&self, facing: Direction) -> Mat4x4 {
-    let world_rotor = -self.rotor();
-    let world_rotor = match facing {
-      Direction::Forward => world_rotor,
-      Direction::Backward => Rotor3::angle_plane(HALF_ROTATION, ZX_PLANE) * world_rotor,
-    };
+    let world_rotor = transform_rotor_facing(-self.rotor(), facing);
 
     &mat4::rotate(world_rotor) * &mat4::translate(-self.position)
   }

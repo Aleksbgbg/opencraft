@@ -12,6 +12,15 @@ pub struct Rotor3 {
 }
 
 impl Rotor3 {
+  pub fn identity() -> Self {
+    Self {
+      scalar: 1.0,
+      xy: 0.0,
+      yz: 0.0,
+      zx: 0.0,
+    }
+  }
+
   pub fn angle_plane(angle: Angle, plane: BiVec3) -> Self {
     let half = angle / 2.0;
     let neg_sin = -half.sin();

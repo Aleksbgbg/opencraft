@@ -6,16 +6,18 @@ mod text_encoder;
 use crate::camera::Direction;
 use crate::core::math;
 use crate::core::math::angle::Angle;
+use crate::core::math::frustum3::Frustum3;
+use crate::core::math::intersect::Intersects;
 use crate::core::math::mat4;
 use crate::core::math::mat4::Mat4x4;
 use crate::core::math::projection::Perspective;
 use crate::core::math::vec2::Vec2;
 use crate::core::poll_on_interval::PollOnInterval;
 use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
-use crate::model::Scene;
 use crate::model::chunk::Chunk;
 use crate::model::layout::CUBE_EXTENT;
 use crate::model::position::{BlockPosition, ChunkPosition};
+use crate::model::{Scene, layout};
 use crate::platform::ResourceReader;
 use crate::renderer::chunk_mesh::ChunkMesh;
 use crate::renderer::display::Bytes;
@@ -292,6 +294,7 @@ const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 /// Resources that need to be constructed based on the screen's resolution, and
 /// therefore reconstructed on resize.
 struct ScreenSpaceResources {
+  projection: Perspective,
   projection_matrix: Mat4x4,
   depth_view: TextureView,
   render_view: TextureView,
@@ -360,9 +363,11 @@ impl ScreenSpaceResources {
       Z_NEAR,
       Z_FAR,
     );
+    let projection_matrix = mat4::perspective(&projection);
 
     Self {
-      projection_matrix: mat4::perspective(&projection),
+      projection,
+      projection_matrix,
       depth_view: depth_texture.create_view(&TextureViewDescriptor::default()),
       render_view,
       fullscreen_copy_texture_bind_group,
@@ -1282,7 +1287,17 @@ impl Renderer {
       render_pass.set_pipeline(&self.block_pipeline);
       render_pass.set_bind_group(0, &self.block_world_to_screen_transform_bind_group, &[]);
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
-      for chunk in self.chunks.values() {
+
+      let frustum = Frustum3::new(
+        scene.player_camera.position(),
+        scene.player_camera.rotor_facing(view_direction),
+        &self.screen.projection,
+      );
+      for chunk in self
+        .chunks
+        .values()
+        .filter(|chunk| frustum.intersects(&layout::chunk_bounding_volume(chunk.position)))
+      {
         render_pass.set_vertex_buffer(0, chunk.vertex_buffer.slice(..));
         render_pass.draw(0..chunk.vertices_len, 0..1);
       }
@@ -1430,6 +1445,7 @@ fn regenerate_chunk(renderer: &ChunkGraphicsResources<'_>, mesh: &mut ChunkMesh)
 
 struct ChunkRender {
   mesh: ChunkMesh,
+  position: ChunkPosition,
   vertex_buffer: Buffer,
   vertices_len: u32,
 }
@@ -1441,6 +1457,7 @@ impl ChunkRender {
 
     Self {
       mesh,
+      position: chunk.position(),
       vertex_buffer,
       vertices_len,
     }
