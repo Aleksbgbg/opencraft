@@ -27,13 +27,13 @@ impl BoxFace {
 }
 
 pub struct AlignedBox3 {
-  center: Vec3,
+  origin: Vec3,
   extent: f32,
 }
 
 impl AlignedBox3 {
-  pub const fn cube(center: Vec3, extent: f32) -> Self {
-    Self { center, extent }
+  pub const fn cube(origin: Vec3, extent: f32) -> Self {
+    Self { origin, extent }
   }
 
   pub fn find_intersecting_face(&self, segment: &Segment3) -> Option<BoxFace> {
@@ -74,7 +74,7 @@ impl AlignedBox3 {
     let start_a0 = Vec3::dot(start, axis_0);
     let end_a0 = Vec3::dot(end, axis_0);
 
-    let face_center = self.center + (face.normal() * self.extent);
+    let face_center = self.origin + (face.normal() * self.extent);
     let face_center_a0 = Vec3::dot(face_center, axis_0);
 
     let (min_a0, max_a0) = math::min_max(start_a0, end_a0);
