@@ -5,23 +5,23 @@ use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BoxFace {
-  Left,
-  Right,
-  Top,
-  Bottom,
-  Back,
-  Front,
+  XPos,
+  XNeg,
+  YPos,
+  YNeg,
+  ZPos,
+  ZNeg,
 }
 
 impl BoxFace {
   pub fn normal(self) -> Vec3 {
     match self {
-      BoxFace::Left => X_AXIS,
-      BoxFace::Right => -X_AXIS,
-      BoxFace::Top => Y_AXIS,
-      BoxFace::Bottom => -Y_AXIS,
-      BoxFace::Back => Z_AXIS,
-      BoxFace::Front => -Z_AXIS,
+      BoxFace::XPos => X_AXIS,
+      BoxFace::XNeg => -X_AXIS,
+      BoxFace::YPos => Y_AXIS,
+      BoxFace::YNeg => -Y_AXIS,
+      BoxFace::ZPos => Z_AXIS,
+      BoxFace::ZNeg => -Z_AXIS,
     }
   }
 }
@@ -38,12 +38,12 @@ impl AlignedBox3 {
 
   pub fn find_intersecting_face(&self, segment: &Segment3) -> Option<BoxFace> {
     const FACES: [BoxFace; 6] = [
-      BoxFace::Left,
-      BoxFace::Right,
-      BoxFace::Top,
-      BoxFace::Bottom,
-      BoxFace::Back,
-      BoxFace::Front,
+      BoxFace::XPos,
+      BoxFace::XNeg,
+      BoxFace::YPos,
+      BoxFace::YNeg,
+      BoxFace::ZPos,
+      BoxFace::ZNeg,
     ];
 
     for face in FACES {
@@ -64,9 +64,9 @@ impl AlignedBox3 {
 
   fn intersects_box_face(&self, face: BoxFace, segment: &Segment3) -> bool {
     let (axis_0, axis_1, axis_2) = match face {
-      BoxFace::Left | BoxFace::Right => (X_AXIS, Y_AXIS, Z_AXIS),
-      BoxFace::Top | BoxFace::Bottom => (Y_AXIS, Z_AXIS, X_AXIS),
-      BoxFace::Back | BoxFace::Front => (Z_AXIS, X_AXIS, Y_AXIS),
+      BoxFace::XPos | BoxFace::XNeg => (X_AXIS, Y_AXIS, Z_AXIS),
+      BoxFace::YPos | BoxFace::YNeg => (Y_AXIS, Z_AXIS, X_AXIS),
+      BoxFace::ZPos | BoxFace::ZNeg => (Z_AXIS, X_AXIS, Y_AXIS),
     };
 
     let start = segment.start();
@@ -123,6 +123,6 @@ mod tests {
 
     let face = cube.find_intersecting_face(&segment);
 
-    assert_eq!(Some(BoxFace::Right), face);
+    assert_eq!(Some(BoxFace::XNeg), face);
   }
 }

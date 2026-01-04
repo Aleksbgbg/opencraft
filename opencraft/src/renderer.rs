@@ -51,45 +51,45 @@ static FOV: LazyLock<Angle> = LazyLock::new(|| Angle::degrees(75.0));
 const Z_NEAR: f32 = 0.01;
 const Z_FAR: f32 = 1000.0;
 
-const BACK: f32 = CUBE_EXTENT;
-const FRONT: f32 = -CUBE_EXTENT;
-const BOTTOM: f32 = -CUBE_EXTENT;
-const TOP: f32 = CUBE_EXTENT;
-const LEFT: f32 = -CUBE_EXTENT;
-const RIGHT: f32 = CUBE_EXTENT;
+const X_POS: f32 = CUBE_EXTENT;
+const X_NEG: f32 = -CUBE_EXTENT;
+const Y_POS: f32 = CUBE_EXTENT;
+const Y_NEG: f32 = -CUBE_EXTENT;
+const Z_POS: f32 = CUBE_EXTENT;
+const Z_NEG: f32 = -CUBE_EXTENT;
 
 const TEX_WIDTH: f32 = 48.0;
 const TEX_HEIGHT: f32 = 64.0;
 
-const TEX_FRONT_LEFT: f32 = 16.0 / TEX_WIDTH;
-const TEX_FRONT_RIGHT: f32 = 32.0 / TEX_WIDTH;
-const TEX_FRONT_TOP: f32 = 32.0 / TEX_HEIGHT;
-const TEX_FRONT_BOTTOM: f32 = 48.0 / TEX_HEIGHT;
+const TEX_X_POS_LEFT: f32 = 32.0 / TEX_WIDTH;
+const TEX_X_POS_RIGHT: f32 = 48.0 / TEX_WIDTH;
+const TEX_X_POS_TOP: f32 = 16.0 / TEX_HEIGHT;
+const TEX_X_POS_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
 
-const TEX_BACK_LEFT: f32 = 16.0 / TEX_WIDTH;
-const TEX_BACK_RIGHT: f32 = 32.0 / TEX_WIDTH;
-const TEX_BACK_TOP: f32 = 0.0 / TEX_HEIGHT;
-const TEX_BACK_BOTTOM: f32 = 16.0 / TEX_HEIGHT;
+const TEX_X_NEG_LEFT: f32 = 0.0 / TEX_WIDTH;
+const TEX_X_NEG_RIGHT: f32 = 16.0 / TEX_WIDTH;
+const TEX_X_NEG_TOP: f32 = 16.0 / TEX_HEIGHT;
+const TEX_X_NEG_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
 
-const TEX_TOP_LEFT: f32 = 16.0 / TEX_WIDTH;
-const TEX_TOP_RIGHT: f32 = 32.0 / TEX_WIDTH;
-const TEX_TOP_TOP: f32 = 16.0 / TEX_HEIGHT;
-const TEX_TOP_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
+const TEX_Y_POS_LEFT: f32 = 16.0 / TEX_WIDTH;
+const TEX_Y_POS_RIGHT: f32 = 32.0 / TEX_WIDTH;
+const TEX_Y_POS_TOP: f32 = 16.0 / TEX_HEIGHT;
+const TEX_Y_POS_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
 
-const TEX_BOTTOM_LEFT: f32 = 16.0 / TEX_WIDTH;
-const TEX_BOTTOM_RIGHT: f32 = 32.0 / TEX_WIDTH;
-const TEX_BOTTOM_TOP: f32 = 48.0 / TEX_HEIGHT;
-const TEX_BOTTOM_BOTTOM: f32 = 64.0 / TEX_HEIGHT;
+const TEX_Y_NEG_LEFT: f32 = 16.0 / TEX_WIDTH;
+const TEX_Y_NEG_RIGHT: f32 = 32.0 / TEX_WIDTH;
+const TEX_Y_NEG_TOP: f32 = 48.0 / TEX_HEIGHT;
+const TEX_Y_NEG_BOTTOM: f32 = 64.0 / TEX_HEIGHT;
 
-const TEX_LEFT_LEFT: f32 = 0.0 / TEX_WIDTH;
-const TEX_LEFT_RIGHT: f32 = 16.0 / TEX_WIDTH;
-const TEX_LEFT_TOP: f32 = 16.0 / TEX_HEIGHT;
-const TEX_LEFT_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
+const TEX_Z_POS_LEFT: f32 = 16.0 / TEX_WIDTH;
+const TEX_Z_POS_RIGHT: f32 = 32.0 / TEX_WIDTH;
+const TEX_Z_POS_TOP: f32 = 0.0 / TEX_HEIGHT;
+const TEX_Z_POS_BOTTOM: f32 = 16.0 / TEX_HEIGHT;
 
-const TEX_RIGHT_LEFT: f32 = 32.0 / TEX_WIDTH;
-const TEX_RIGHT_RIGHT: f32 = 48.0 / TEX_WIDTH;
-const TEX_RIGHT_TOP: f32 = 16.0 / TEX_HEIGHT;
-const TEX_RIGHT_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
+const TEX_Z_NEG_LEFT: f32 = 16.0 / TEX_WIDTH;
+const TEX_Z_NEG_RIGHT: f32 = 32.0 / TEX_WIDTH;
+const TEX_Z_NEG_TOP: f32 = 32.0 / TEX_HEIGHT;
+const TEX_Z_NEG_BOTTOM: f32 = 48.0 / TEX_HEIGHT;
 
 #[repr(C)]
 #[derive(Clone, Copy, Immutable, IntoBytes)]
@@ -99,155 +99,155 @@ struct Vertex {
 }
 
 const VERTICES: &[Vertex] = &[
-  // Front face
+  // +X face
   Vertex {
-    position: [LEFT, TOP, FRONT],
-    texture_coordinate: [TEX_FRONT_LEFT, TEX_FRONT_TOP],
+    position: [X_POS, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_BOTTOM],
   },
   Vertex {
-    position: [LEFT, BOTTOM, FRONT],
-    texture_coordinate: [TEX_FRONT_LEFT, TEX_FRONT_BOTTOM],
+    position: [X_POS, Y_POS, Z_POS],
+    texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_TOP],
   },
   Vertex {
-    position: [RIGHT, TOP, FRONT],
-    texture_coordinate: [TEX_FRONT_RIGHT, TEX_FRONT_TOP],
+    position: [X_POS, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_BOTTOM],
   },
   Vertex {
-    position: [RIGHT, TOP, FRONT],
-    texture_coordinate: [TEX_FRONT_RIGHT, TEX_FRONT_TOP],
+    position: [X_POS, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_BOTTOM],
   },
   Vertex {
-    position: [LEFT, BOTTOM, FRONT],
-    texture_coordinate: [TEX_FRONT_LEFT, TEX_FRONT_BOTTOM],
+    position: [X_POS, Y_POS, Z_POS],
+    texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_TOP],
   },
   Vertex {
-    position: [RIGHT, BOTTOM, FRONT],
-    texture_coordinate: [TEX_FRONT_RIGHT, TEX_FRONT_BOTTOM],
+    position: [X_POS, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_TOP],
   },
-  // Back face
+  // -X face
   Vertex {
-    position: [LEFT, TOP, BACK],
-    texture_coordinate: [TEX_BACK_LEFT, TEX_BACK_BOTTOM],
-  },
-  Vertex {
-    position: [RIGHT, TOP, BACK],
-    texture_coordinate: [TEX_BACK_RIGHT, TEX_BACK_BOTTOM],
+    position: [X_NEG, Y_POS, Z_POS],
+    texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_TOP],
   },
   Vertex {
-    position: [LEFT, BOTTOM, BACK],
-    texture_coordinate: [TEX_BACK_LEFT, TEX_BACK_TOP],
+    position: [X_NEG, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_BOTTOM],
   },
   Vertex {
-    position: [RIGHT, BOTTOM, BACK],
-    texture_coordinate: [TEX_BACK_RIGHT, TEX_BACK_TOP],
+    position: [X_NEG, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_TOP],
   },
   Vertex {
-    position: [LEFT, BOTTOM, BACK],
-    texture_coordinate: [TEX_BACK_LEFT, TEX_BACK_TOP],
+    position: [X_NEG, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_TOP],
   },
   Vertex {
-    position: [RIGHT, TOP, BACK],
-    texture_coordinate: [TEX_BACK_RIGHT, TEX_BACK_BOTTOM],
-  },
-  // Top face
-  Vertex {
-    position: [LEFT, TOP, BACK],
-    texture_coordinate: [TEX_TOP_LEFT, TEX_TOP_TOP],
+    position: [X_NEG, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_BOTTOM],
   },
   Vertex {
-    position: [LEFT, TOP, FRONT],
-    texture_coordinate: [TEX_TOP_LEFT, TEX_TOP_BOTTOM],
+    position: [X_NEG, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_BOTTOM],
+  },
+  // +Y face
+  Vertex {
+    position: [X_POS, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_TOP],
   },
   Vertex {
-    position: [RIGHT, TOP, BACK],
-    texture_coordinate: [TEX_TOP_RIGHT, TEX_TOP_TOP],
+    position: [X_NEG, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_TOP],
   },
   Vertex {
-    position: [RIGHT, TOP, BACK],
-    texture_coordinate: [TEX_TOP_RIGHT, TEX_TOP_TOP],
+    position: [X_POS, Y_POS, Z_POS],
+    texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_BOTTOM],
   },
   Vertex {
-    position: [LEFT, TOP, FRONT],
-    texture_coordinate: [TEX_TOP_LEFT, TEX_TOP_BOTTOM],
+    position: [X_POS, Y_POS, Z_POS],
+    texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_BOTTOM],
   },
   Vertex {
-    position: [RIGHT, TOP, FRONT],
-    texture_coordinate: [TEX_TOP_RIGHT, TEX_TOP_BOTTOM],
-  },
-  // Bottom face
-  Vertex {
-    position: [RIGHT, BOTTOM, FRONT],
-    texture_coordinate: [TEX_BOTTOM_RIGHT, TEX_BOTTOM_TOP],
+    position: [X_NEG, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_TOP],
   },
   Vertex {
-    position: [LEFT, BOTTOM, FRONT],
-    texture_coordinate: [TEX_BOTTOM_LEFT, TEX_BOTTOM_TOP],
+    position: [X_NEG, Y_POS, Z_POS],
+    texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_BOTTOM],
+  },
+  // -Y face
+  Vertex {
+    position: [X_POS, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_TOP],
   },
   Vertex {
-    position: [LEFT, BOTTOM, BACK],
-    texture_coordinate: [TEX_BOTTOM_LEFT, TEX_BOTTOM_BOTTOM],
+    position: [X_NEG, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_TOP],
   },
   Vertex {
-    position: [LEFT, BOTTOM, BACK],
-    texture_coordinate: [TEX_BOTTOM_LEFT, TEX_BOTTOM_BOTTOM],
+    position: [X_POS, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_BOTTOM],
   },
   Vertex {
-    position: [RIGHT, BOTTOM, BACK],
-    texture_coordinate: [TEX_BOTTOM_RIGHT, TEX_BOTTOM_BOTTOM],
+    position: [X_POS, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_BOTTOM],
   },
   Vertex {
-    position: [RIGHT, BOTTOM, FRONT],
-    texture_coordinate: [TEX_BOTTOM_RIGHT, TEX_BOTTOM_TOP],
-  },
-  // Left face
-  Vertex {
-    position: [LEFT, TOP, BACK],
-    texture_coordinate: [TEX_LEFT_RIGHT, TEX_LEFT_TOP],
+    position: [X_NEG, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_TOP],
   },
   Vertex {
-    position: [LEFT, BOTTOM, BACK],
-    texture_coordinate: [TEX_LEFT_LEFT, TEX_LEFT_TOP],
+    position: [X_NEG, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_BOTTOM],
+  },
+  // +Z face
+  Vertex {
+    position: [X_POS, Y_POS, Z_POS],
+    texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_BOTTOM],
   },
   Vertex {
-    position: [LEFT, TOP, FRONT],
-    texture_coordinate: [TEX_LEFT_RIGHT, TEX_LEFT_BOTTOM],
+    position: [X_NEG, Y_POS, Z_POS],
+    texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_BOTTOM],
   },
   Vertex {
-    position: [LEFT, TOP, FRONT],
-    texture_coordinate: [TEX_LEFT_RIGHT, TEX_LEFT_BOTTOM],
+    position: [X_POS, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_TOP],
   },
   Vertex {
-    position: [LEFT, BOTTOM, BACK],
-    texture_coordinate: [TEX_LEFT_LEFT, TEX_LEFT_TOP],
+    position: [X_POS, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_TOP],
   },
   Vertex {
-    position: [LEFT, BOTTOM, FRONT],
-    texture_coordinate: [TEX_LEFT_LEFT, TEX_LEFT_BOTTOM],
-  },
-  // Right face
-  Vertex {
-    position: [RIGHT, TOP, BACK],
-    texture_coordinate: [TEX_RIGHT_LEFT, TEX_RIGHT_TOP],
+    position: [X_NEG, Y_POS, Z_POS],
+    texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_BOTTOM],
   },
   Vertex {
-    position: [RIGHT, TOP, FRONT],
-    texture_coordinate: [TEX_RIGHT_LEFT, TEX_RIGHT_BOTTOM],
+    position: [X_NEG, Y_NEG, Z_POS],
+    texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_TOP],
+  },
+  // -Z face
+  Vertex {
+    position: [X_NEG, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_TOP],
   },
   Vertex {
-    position: [RIGHT, BOTTOM, BACK],
-    texture_coordinate: [TEX_RIGHT_RIGHT, TEX_RIGHT_TOP],
+    position: [X_POS, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_TOP],
   },
   Vertex {
-    position: [RIGHT, BOTTOM, BACK],
-    texture_coordinate: [TEX_RIGHT_RIGHT, TEX_RIGHT_TOP],
+    position: [X_NEG, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_BOTTOM],
   },
   Vertex {
-    position: [RIGHT, TOP, FRONT],
-    texture_coordinate: [TEX_RIGHT_LEFT, TEX_RIGHT_BOTTOM],
+    position: [X_NEG, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_BOTTOM],
   },
   Vertex {
-    position: [RIGHT, BOTTOM, FRONT],
-    texture_coordinate: [TEX_RIGHT_RIGHT, TEX_RIGHT_BOTTOM],
+    position: [X_POS, Y_POS, Z_NEG],
+    texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_TOP],
+  },
+  Vertex {
+    position: [X_POS, Y_NEG, Z_NEG],
+    texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_BOTTOM],
   },
 ];
 
@@ -575,7 +575,7 @@ impl Renderer {
       primitive: PrimitiveState {
         topology: PrimitiveTopology::TriangleList,
         strip_index_format: None,
-        front_face: FrontFace::Ccw,
+        front_face: FrontFace::Cw,
         cull_mode: Some(Face::Back),
         unclipped_depth: false,
         polygon_mode: PolygonMode::Fill,
@@ -664,7 +664,7 @@ impl Renderer {
       primitive: PrimitiveState {
         topology: PrimitiveTopology::TriangleList,
         strip_index_format: None,
-        front_face: FrontFace::Ccw,
+        front_face: FrontFace::Cw,
         cull_mode: Some(Face::Back),
         unclipped_depth: false,
         polygon_mode: PolygonMode::Fill,
@@ -747,7 +747,7 @@ impl Renderer {
       primitive: PrimitiveState {
         topology: PrimitiveTopology::TriangleList,
         strip_index_format: None,
-        front_face: FrontFace::Cw,
+        front_face: FrontFace::Ccw,
         cull_mode: Some(Face::Back),
         unclipped_depth: false,
         polygon_mode: PolygonMode::Fill,
@@ -820,7 +820,7 @@ impl Renderer {
       primitive: PrimitiveState {
         topology: PrimitiveTopology::TriangleStrip,
         strip_index_format: None,
-        front_face: FrontFace::Ccw,
+        front_face: FrontFace::Cw,
         cull_mode: None,
         unclipped_depth: false,
         polygon_mode: PolygonMode::Fill,
@@ -951,7 +951,7 @@ impl Renderer {
       primitive: PrimitiveState {
         topology: PrimitiveTopology::TriangleStrip,
         strip_index_format: None,
-        front_face: FrontFace::Ccw,
+        front_face: FrontFace::Cw,
         cull_mode: None,
         unclipped_depth: false,
         polygon_mode: PolygonMode::Fill,
@@ -1058,7 +1058,7 @@ impl Renderer {
       primitive: PrimitiveState {
         topology: PrimitiveTopology::TriangleList,
         strip_index_format: None,
-        front_face: FrontFace::Ccw,
+        front_face: FrontFace::Cw,
         cull_mode: None,
         unclipped_depth: false,
         polygon_mode: PolygonMode::Fill,
