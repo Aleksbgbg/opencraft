@@ -1,6 +1,7 @@
 use crate::camera::Camera;
-use crate::core::math::aligned_box3::{AlignedBox3, BoxFace};
+use crate::core::math::aligned_box3::AlignedBox3;
 use crate::core::math::angle::{Angle, FULL_ROTATION};
+use crate::core::math::intersect::BoxFace;
 use crate::core::math::segment3::Segment3;
 use crate::core::math::vec2::Vec2;
 use crate::core::math::vec3::Vec3;
