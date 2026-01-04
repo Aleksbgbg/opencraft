@@ -27,8 +27,6 @@ use winit::keyboard::KeyCode;
 
 const FRAME_TIME_MEASUREMENTS: usize = 60;
 
-pub const BLOCK_LIMIT: usize = 256;
-
 pub struct UpdateInputs<'a> {
   pub delta: Duration,
 

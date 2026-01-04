@@ -7,10 +7,6 @@ use std::ops::RangeInclusive;
 
 const Y_ITERATOR: RangeInclusive<i32> = Y_MIN_BLOCK_VALUE..=Y_MAX_BLOCK_VALUE;
 
-pub fn chunk_levels() -> impl Iterator<Item = i32> {
-  Y_ITERATOR
-}
-
 pub fn chunk_level_blocks(
   chunk_position: ChunkPosition,
 ) -> impl Iterator<Item = (i32, i32)> + Clone {

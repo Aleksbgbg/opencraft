@@ -1,3 +1,4 @@
+pub mod chunk_mesh;
 mod display;
 mod font_atlas;
 mod text_encoder;
@@ -10,12 +11,12 @@ use crate::core::math::mat4::Mat4x4;
 use crate::core::math::vec2::Vec2;
 use crate::core::poll_on_interval::PollOnInterval;
 use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
-use crate::model::block::Block;
+use crate::model::Scene;
 use crate::model::chunk::Chunk;
-use crate::model::layout::{BLOCKS_PER_LEVEL_USIZE, CUBE_EXTENT};
+use crate::model::layout::CUBE_EXTENT;
 use crate::model::position::{BlockPosition, ChunkPosition};
-use crate::model::{BLOCK_LIMIT, Scene, iterators, layout};
 use crate::platform::ResourceReader;
+use crate::renderer::chunk_mesh::ChunkMesh;
 use crate::renderer::display::Bytes;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
 use crate::renderer::text_encoder::{Anchor, EMPTY_LINE, TextEncoder};
@@ -27,7 +28,7 @@ use memory_stats::MemoryStats;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
-use std::{array, iter, mem};
+use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::wgt::TextureDataOrder;
 use wgpu::{
@@ -98,12 +99,12 @@ const TEX_Z_NEG_BOTTOM: f32 = 48.0 / TEX_HEIGHT;
 
 #[repr(C)]
 #[derive(Clone, Copy, Immutable, IntoBytes)]
-struct Vertex {
+pub struct Vertex {
   position: [f32; 3],
   texture_coordinate: [f32; 2],
 }
 
-const VERTICES: &[Vertex] = &[
+pub const VERTICES: &[Vertex] = &[
   // +X face
   Vertex {
     position: [X_POS, Y_POS, Z_NEG],
@@ -385,7 +386,6 @@ pub struct Renderer {
 
   block_world_to_screen_transform_buffer: Buffer,
   block_world_to_screen_transform_bind_group: BindGroup,
-  block_model_to_world_transform_layout: BindGroupLayout,
   block_pipeline: RenderPipeline,
   grass_bind_group: BindGroup,
 
@@ -532,7 +532,7 @@ impl Renderer {
 
     let block_world_to_screen_transform_buffer = device.create_buffer(&BufferDescriptor {
       label: Some("Block World -> Screen Transform Buffer"),
-      size: (mem::size_of::<Mat4x4>() * BLOCK_LIMIT).coerce(),
+      size: mem::size_of::<Mat4x4>().coerce(),
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
       mapped_at_creation: false,
     });
@@ -560,28 +560,12 @@ impl Renderer {
         }],
       });
 
-    let block_model_to_world_transform_layout =
-      device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Block Model -> World Transform Buffer Bind Group Layout"),
-        entries: &[BindGroupLayoutEntry {
-          binding: 0,
-          visibility: ShaderStages::VERTEX,
-          ty: BindingType::Buffer {
-            ty: BufferBindingType::Uniform,
-            has_dynamic_offset: false,
-            min_binding_size: None,
-          },
-          count: None,
-        }],
-      });
-
     let block_shader = device.create_shader_module(include_wgsl!("shaders/block.wgsl"));
     let block_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Block Render Pipeline Layout"),
       bind_group_layouts: &[
         &block_world_to_screen_transform_layout,
         &grass_bind_group_layout,
-        &block_model_to_world_transform_layout,
       ],
       immediate_size: 0,
     });
@@ -1125,7 +1109,6 @@ impl Renderer {
       vertex_buffer,
       block_world_to_screen_transform_buffer,
       block_world_to_screen_transform_bind_group,
-      block_model_to_world_transform_layout,
       block_pipeline,
       grass_bind_group,
       chunks: HashMap::new(),
@@ -1199,8 +1182,6 @@ impl Renderer {
         ChunkRender::load(
           &ChunkGraphicsResources {
             device: &self.device,
-            queue: &self.queue,
-            block_model_to_world_transform_layout: &self.block_model_to_world_transform_layout,
           },
           chunk,
         ),
@@ -1212,8 +1193,6 @@ impl Renderer {
       chunk_render.destroy_block(
         &ChunkGraphicsResources {
           device: &self.device,
-          queue: &self.queue,
-          block_model_to_world_transform_layout: &self.block_model_to_world_transform_layout,
         },
         scene.chunks.get(&chunk_position).unwrap(),
         block_position,
@@ -1224,8 +1203,6 @@ impl Renderer {
       chunk_render.create_block(
         &ChunkGraphicsResources {
           device: &self.device,
-          queue: &self.queue,
-          block_model_to_world_transform_layout: &self.block_model_to_world_transform_layout,
         },
         scene.chunks.get(&chunk_position).unwrap(),
         block_position,
@@ -1288,16 +1265,6 @@ impl Renderer {
       render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
       render_pass.draw(0..VERTICES.len().coerce(), 0..1);
 
-      render_pass.set_pipeline(&self.block_pipeline);
-      render_pass.set_bind_group(0, &self.block_world_to_screen_transform_bind_group, &[]);
-      render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
-      for chunk in self.chunks.values() {
-        for level in chunk.levels.values() {
-          render_pass.set_bind_group(2, &level.transforms_bind_group, &[]);
-          render_pass.draw(0..VERTICES.len().coerce(), 0..level.blocks.coerce());
-        }
-      }
-
       if let Some(target_block) = &scene.target_block {
         self.queue.write_buffer(
           &self.block_outline_transform_buffer,
@@ -1308,6 +1275,14 @@ impl Renderer {
         render_pass.set_pipeline(&self.block_outline_pipeline);
         render_pass.set_bind_group(0, &self.block_outline_transform_bind_group, &[]);
         render_pass.draw(0..VERTICES.len().coerce(), 0..1);
+      }
+
+      render_pass.set_pipeline(&self.block_pipeline);
+      render_pass.set_bind_group(0, &self.block_world_to_screen_transform_bind_group, &[]);
+      render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
+      for chunk in self.chunks.values() {
+        render_pass.set_vertex_buffer(0, chunk.vertex_buffer.slice(..));
+        render_pass.draw(0..chunk.vertices_len, 0..1);
       }
     }
     {
@@ -1385,7 +1360,7 @@ impl Renderer {
               &format!("  Chunk: {}", target_block.chunk_position),
               &format!(
                 "  Block: {} [{}]",
-                target_block.block_position, target_block.face
+                target_block.block_position, target_block.face,
               ),
               &format!("  World: {}", target_block.world_position),
             ],
@@ -1436,102 +1411,57 @@ impl Renderer {
 
 struct ChunkGraphicsResources<'a> {
   device: &'a Device,
-  queue: &'a Queue,
-  block_model_to_world_transform_layout: &'a BindGroupLayout,
 }
 
-struct ChunkLevel {
-  blocks: usize,
-  transforms: Buffer,
-  transforms_bind_group: BindGroup,
+fn regenerate_chunk(renderer: &ChunkGraphicsResources<'_>, chunk: &Chunk) -> (Buffer, u32) {
+  let mesh = ChunkMesh::generate(chunk);
+
+  (
+    renderer.device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Chunk Vertex Buffer"),
+      contents: mesh.vertices.as_bytes(),
+      usage: BufferUsages::VERTEX,
+    }),
+    mesh.vertices.len().coerce(),
+  )
 }
 
-#[derive(Default)]
 struct ChunkRender {
-  levels: HashMap<i32, ChunkLevel>,
+  vertex_buffer: Buffer,
+  vertices_len: u32,
 }
 
 impl ChunkRender {
   fn load(renderer: &ChunkGraphicsResources<'_>, chunk: &Chunk) -> Self {
-    let mut render = Self::default();
+    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, chunk);
 
-    for y in iterators::chunk_levels() {
-      render.regenerate_level(renderer, chunk, y);
+    Self {
+      vertex_buffer,
+      vertices_len,
     }
-
-    render
   }
 
   fn create_block(
     &mut self,
     renderer: &ChunkGraphicsResources<'_>,
     chunk: &Chunk,
-    block_position: BlockPosition,
+    _block_position: BlockPosition,
   ) {
-    self.regenerate_level(renderer, chunk, block_position.y());
+    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, chunk);
+
+    self.vertex_buffer = vertex_buffer;
+    self.vertices_len = vertices_len;
   }
 
   fn destroy_block(
     &mut self,
     renderer: &ChunkGraphicsResources<'_>,
     chunk: &Chunk,
-    block_position: BlockPosition,
+    _block_position: BlockPosition,
   ) {
-    self.regenerate_level(renderer, chunk, block_position.y());
-  }
+    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, chunk);
 
-  fn regenerate_level(&mut self, renderer: &ChunkGraphicsResources<'_>, chunk: &Chunk, y: i32) {
-    let mut transforms: [Mat4x4; BLOCKS_PER_LEVEL_USIZE] = array::from_fn(|_| Default::default());
-    let mut block_index = 0;
-
-    for (x, z) in iterators::chunk_level_blocks(chunk.position()) {
-      let block_position = BlockPosition::new(x, y, z);
-      let world_position = layout::block_to_world(block_position);
-
-      if chunk.get(block_position) == Block::Air {
-        continue;
-      }
-
-      transforms[block_index] = mat4::translate(world_position);
-      block_index += 1;
-    }
-
-    if block_index == 0 {
-      if self.levels.contains_key(&y) {
-        self.levels.remove(&y);
-      }
-
-      return;
-    }
-
-    if let Some(level) = self.levels.get_mut(&y) {
-      level.blocks = block_index;
-      renderer
-        .queue
-        .write_buffer(&level.transforms, 0, transforms[..block_index].as_bytes());
-    } else {
-      let transforms = renderer.device.create_buffer_init(&BufferInitDescriptor {
-        label: Some("Chunk Level Block Transforms Buffer: Model -> World"),
-        contents: transforms.as_bytes(),
-        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-      });
-      let transforms_bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
-        label: Some("Chunk Level Block Transforms Bind Group"),
-        layout: renderer.block_model_to_world_transform_layout,
-        entries: &[BindGroupEntry {
-          binding: 0,
-          resource: transforms.as_entire_binding(),
-        }],
-      });
-
-      self.levels.insert(
-        y,
-        ChunkLevel {
-          blocks: block_index,
-          transforms,
-          transforms_bind_group,
-        },
-      );
-    }
+    self.vertex_buffer = vertex_buffer;
+    self.vertices_len = vertices_len;
   }
 }

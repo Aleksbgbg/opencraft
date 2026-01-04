@@ -4,9 +4,9 @@
 mod camera;
 pub mod core;
 mod game;
-mod model;
+pub mod model;
 mod platform;
-mod renderer;
+pub mod renderer;
 mod resources;
 mod windowing;
 

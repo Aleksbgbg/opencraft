@@ -34,6 +34,19 @@ impl From<BoxFace> for Direction {
   }
 }
 
+impl From<Direction> for BoxFace {
+  fn from(value: Direction) -> Self {
+    match value {
+      Direction::XPos => BoxFace::XPos,
+      Direction::XNeg => BoxFace::XNeg,
+      Direction::YPos => BoxFace::YPos,
+      Direction::YNeg => BoxFace::YNeg,
+      Direction::ZPos => BoxFace::ZPos,
+      Direction::ZNeg => BoxFace::ZNeg,
+    }
+  }
+}
+
 impl AlignedBox3 {
   pub fn find_intersecting_face(&self, segment: &Segment3) -> Option<BoxFace> {
     for face in BoxFace::iter() {

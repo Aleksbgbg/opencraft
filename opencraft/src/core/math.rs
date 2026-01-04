@@ -12,6 +12,7 @@ use crate::core::math::bivec3::BiVec3;
 use crate::core::math::vec3::Vec3;
 use crate::core::type_conversions::CoerceLossyRound;
 use std::ops::RangeInclusive;
+use strum::EnumIter;
 
 pub const X_AXIS: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 pub const Y_AXIS: Vec3 = Vec3::new(0.0, 1.0, 0.0);
@@ -21,7 +22,7 @@ pub const XY_PLANE: BiVec3 = BiVec3::new(1.0, 0.0, 0.0);
 pub const YZ_PLANE: BiVec3 = BiVec3::new(0.0, 1.0, 0.0);
 pub const ZX_PLANE: BiVec3 = BiVec3::new(0.0, 0.0, 1.0);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, EnumIter)]
 pub enum Direction {
   XPos,
   XNeg,

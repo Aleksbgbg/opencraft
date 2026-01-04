@@ -3,6 +3,13 @@ use lopencraft::core::math::aligned_box3::AlignedBox3;
 use lopencraft::core::math::intersect::Intersects;
 use lopencraft::core::math::segment3::Segment3;
 use lopencraft::core::math::vec3::Vec3;
+use lopencraft::model::block::Block;
+use lopencraft::model::chunk::Chunk;
+use lopencraft::model::position::{BlockPosition, ChunkPosition};
+use lopencraft::model::terrain::Generate;
+use lopencraft::renderer::chunk_mesh::ChunkMesh;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 // Bechmarks are split into fast and slow cases. In fast cases, functions exit
 // early to show the best possible execution time. In slow cases, all of the
@@ -47,6 +54,27 @@ fn intersects_box_segment_slow(bencher: Bencher) {
 
   bencher.bench_local(move || {
     black_box(black_box(&cube).intersects(black_box(&segment)));
+  });
+}
+
+struct AllGrass;
+
+impl Generate for AllGrass {
+  fn generate(&self, _block: BlockPosition) -> Block {
+    Block::Grass
+  }
+}
+
+#[divan::bench]
+fn chunk_mesh_generate_slow(bencher: Bencher) {
+  let chunk = Chunk::load(
+    ChunkPosition::default(),
+    Arc::new(AllGrass),
+    HashMap::default(),
+  );
+
+  bencher.bench_local(move || {
+    black_box(ChunkMesh::generate(black_box(&chunk)));
   });
 }
 
