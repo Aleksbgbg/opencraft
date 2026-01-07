@@ -43,6 +43,10 @@ impl ChunkPosition {
   pub fn len_sq(self) -> i32 {
     Self::dot(self, self)
   }
+
+  pub fn dist_sq(lhs: Self, rhs: Self) -> i32 {
+    (lhs - rhs).len_sq()
+  }
 }
 
 #[derive(

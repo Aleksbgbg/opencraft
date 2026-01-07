@@ -27,6 +27,7 @@ use crate::resources::Texture;
 use crate::{core, platform};
 use anyhow::Result;
 use image::GenericImageView;
+use itertools::Itertools;
 use memory_stats::MemoryStats;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
@@ -1293,10 +1294,12 @@ impl Renderer {
         scene.player_camera.rotor_facing(view_direction),
         &self.screen.projection,
       );
+      let player_chunk = layout::world_to_chunk(scene.player_camera.position());
       for chunk in self
         .chunks
         .values()
         .filter(|chunk| frustum.intersects(&layout::chunk_bounding_volume(chunk.position)))
+        .sorted_by_cached_key(|chunk| ChunkPosition::dist_sq(chunk.position, player_chunk))
       {
         render_pass.set_vertex_buffer(0, chunk.vertex_buffer.slice(..));
         render_pass.draw(0..chunk.vertices_len, 0..1);
