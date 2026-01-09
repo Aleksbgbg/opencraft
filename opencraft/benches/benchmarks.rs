@@ -13,6 +13,7 @@ use lopencraft::model::chunk::Chunk;
 use lopencraft::model::position::{BlockPosition, ChunkPosition};
 use lopencraft::model::terrain::Generate;
 use lopencraft::renderer::chunk_mesh::ChunkMesh;
+use lopencraft::renderer::texture_atlas::TextureAtlas;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -108,7 +109,7 @@ fn chunk_mesh_generate_slow(bencher: Bencher) {
 
   bencher.bench_local(move || {
     let mut mesh = ChunkMesh::generate(black_box(&chunk));
-    black_box(mesh.generate_vertices());
+    black_box(mesh.generate_vertices(&TextureAtlas {}));
   });
 }
 
@@ -123,7 +124,7 @@ fn chunk_mesh_update_incremental_slow(bencher: Bencher) {
 
   bencher.bench_local(move || {
     black_box(&mut mesh).update_incremental(black_box(&chunk), black_box(BlockPosition::default()));
-    black_box(mesh.generate_vertices());
+    black_box(mesh.generate_vertices(&TextureAtlas {}));
   });
 }
 

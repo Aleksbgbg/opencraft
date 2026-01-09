@@ -2,6 +2,7 @@ pub mod chunk_mesh;
 mod display;
 mod font_atlas;
 mod text_encoder;
+pub mod texture_atlas;
 
 use crate::camera::Direction;
 use crate::core::math;
@@ -24,6 +25,7 @@ use crate::renderer::chunk_mesh::ChunkMesh;
 use crate::renderer::display::Bytes;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
 use crate::renderer::text_encoder::{Anchor, EMPTY_LINE, TextEncoder};
+use crate::renderer::texture_atlas::TextureAtlas;
 use crate::resources::Texture;
 use crate::{core, platform};
 use anyhow::Result;
@@ -264,7 +266,7 @@ pub const VERTICES: &[Vertex] = &[
 
 #[repr(C)]
 #[derive(Clone, Copy, Immutable, IntoBytes)]
-struct Quad {
+pub struct Quad {
   left: f32,
   right: f32,
   top: f32,
@@ -384,6 +386,7 @@ pub struct Renderer {
   graphics_backend_string: &'static str,
   memory_stats: PollOnInterval<Option<MemoryStats>>,
 
+  block_texture_atlas: Arc<TextureAtlas>,
   font_atlas: FontAtlas,
 
   surface: Surface<'static>,
@@ -399,7 +402,7 @@ pub struct Renderer {
   block_world_to_screen_transform_buffer: Buffer,
   block_world_to_screen_transform_bind_group: BindGroup,
   block_pipeline: RenderPipeline,
-  grass_bind_group: BindGroup,
+  block_texture_atlas_bind_group: BindGroup,
 
   chunks: HashMap<ChunkPosition, ChunkRender>,
 
@@ -481,17 +484,15 @@ impl Renderer {
 
     let assets = ResourceReader::new()?;
 
-    let grass_image = assets.load_texture(Texture::Grass).await?;
-    let grass_rgba = grass_image.to_rgba8();
-    let (grass_width, grass_height) = grass_image.dimensions();
+    let (block_texture_atlas, block_texture_atlas_image) = TextureAtlas::load(&assets).await?;
 
-    let grass_texture = device.create_texture_with_data(
+    let block_texture_atlas_texture = device.create_texture_with_data(
       &queue,
       &TextureDescriptor {
-        label: Some("Grass Texture"),
+        label: Some("Block Texture Atlas"),
         size: Extent3d {
-          width: grass_width,
-          height: grass_height,
+          width: block_texture_atlas_image.width,
+          height: block_texture_atlas_image.height,
           depth_or_array_layers: 1,
         },
         mip_level_count: 1,
@@ -502,38 +503,40 @@ impl Renderer {
         view_formats: &[],
       },
       TextureDataOrder::default(),
-      &grass_rgba,
+      &block_texture_atlas_image.rgba,
     );
 
-    let grass_texture_view = grass_texture.create_view(&TextureViewDescriptor::default());
-    let grass_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-      label: Some("Grass Bind Group Layout"),
-      entries: &[
-        BindGroupLayoutEntry {
-          binding: 0,
-          visibility: ShaderStages::FRAGMENT,
-          ty: BindingType::Texture {
-            sample_type: TextureSampleType::Float { filterable: true },
-            view_dimension: TextureViewDimension::D2,
-            multisampled: false,
+    let block_texture_atlas_view =
+      block_texture_atlas_texture.create_view(&TextureViewDescriptor::default());
+    let block_texture_atlas_bind_group_layout =
+      device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Block Texture Atlas Bind Group Layout"),
+        entries: &[
+          BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::FRAGMENT,
+            ty: BindingType::Texture {
+              sample_type: TextureSampleType::Float { filterable: true },
+              view_dimension: TextureViewDimension::D2,
+              multisampled: false,
+            },
+            count: None,
           },
-          count: None,
-        },
-        BindGroupLayoutEntry {
-          binding: 1,
-          visibility: ShaderStages::FRAGMENT,
-          ty: BindingType::Sampler(SamplerBindingType::Filtering),
-          count: None,
-        },
-      ],
-    });
-    let grass_bind_group = device.create_bind_group(&BindGroupDescriptor {
-      label: Some("Grass Bind Group"),
-      layout: &grass_bind_group_layout,
+          BindGroupLayoutEntry {
+            binding: 1,
+            visibility: ShaderStages::FRAGMENT,
+            ty: BindingType::Sampler(SamplerBindingType::Filtering),
+            count: None,
+          },
+        ],
+      });
+    let block_texture_atlas_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Block Texture Atlas Bind Group"),
+      layout: &block_texture_atlas_bind_group_layout,
       entries: &[
         BindGroupEntry {
           binding: 0,
-          resource: BindingResource::TextureView(&grass_texture_view),
+          resource: BindingResource::TextureView(&block_texture_atlas_view),
         },
         BindGroupEntry {
           binding: 1,
@@ -577,7 +580,7 @@ impl Renderer {
       label: Some("Block Render Pipeline Layout"),
       bind_group_layouts: &[
         &block_world_to_screen_transform_layout,
-        &grass_bind_group_layout,
+        &block_texture_atlas_bind_group_layout,
       ],
       immediate_size: 0,
     });
@@ -1113,6 +1116,7 @@ impl Renderer {
       chunk_mesh_channel: Channel::unbounded(),
       graphics_backend_string: platform::get_graphics_backend_string(adapter.get_info().backend),
       memory_stats: PollOnInterval::new(memory_stats::memory_stats, Duration::from_secs(2)),
+      block_texture_atlas: Arc::new(block_texture_atlas),
       font_atlas,
       surface,
       device,
@@ -1124,7 +1128,7 @@ impl Renderer {
       block_world_to_screen_transform_buffer,
       block_world_to_screen_transform_bind_group,
       block_pipeline,
-      grass_bind_group,
+      block_texture_atlas_bind_group,
       chunks: HashMap::new(),
       block_outline_transform_buffer,
       block_outline_transform_bind_group,
@@ -1199,6 +1203,7 @@ impl Renderer {
       chunk_render.destroy_block(
         &ChunkGraphicsResources {
           device: &self.device,
+          block_texture_atlas: &self.block_texture_atlas,
         },
         scene.chunks.get(&chunk_position).unwrap(),
         block_position,
@@ -1209,6 +1214,7 @@ impl Renderer {
       chunk_render.create_block(
         &ChunkGraphicsResources {
           device: &self.device,
+          block_texture_atlas: &self.block_texture_atlas,
         },
         scene.chunks.get(&chunk_position).unwrap(),
         block_position,
@@ -1285,7 +1291,7 @@ impl Renderer {
 
       render_pass.set_pipeline(&self.block_pipeline);
       render_pass.set_bind_group(0, &self.block_world_to_screen_transform_bind_group, &[]);
-      render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
+      render_pass.set_bind_group(1, &self.block_texture_atlas_bind_group, &[]);
 
       let frustum = Frustum3::new(
         scene.player_camera.position(),
@@ -1422,6 +1428,7 @@ impl Renderer {
         ChunkRender::load(
           &ChunkGraphicsResources {
             device: &self.device,
+            block_texture_atlas: &self.block_texture_atlas,
           },
           chunk.position(),
           mesh,
@@ -1446,10 +1453,11 @@ impl Renderer {
 
 struct ChunkGraphicsResources<'a> {
   device: &'a Device,
+  block_texture_atlas: &'a TextureAtlas,
 }
 
 fn regenerate_chunk(renderer: &ChunkGraphicsResources<'_>, mesh: &mut ChunkMesh) -> (Buffer, u32) {
-  let vertices = mesh.generate_vertices();
+  let vertices = mesh.generate_vertices(renderer.block_texture_atlas);
 
   let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
     label: Some("Chunk Vertex Buffer"),

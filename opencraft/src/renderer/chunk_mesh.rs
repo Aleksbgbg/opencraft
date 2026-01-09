@@ -4,6 +4,7 @@ use crate::model::block::Block;
 use crate::model::chunk::Chunk;
 use crate::model::position::BlockPosition;
 use crate::model::{iterators, layout};
+use crate::renderer::texture_atlas::TextureAtlas;
 use crate::renderer::{VERTICES, Vertex};
 use arrayvec::ArrayVec;
 use std::collections::HashMap;
@@ -108,7 +109,12 @@ fn generate_chunk_face_set(chunk: &Chunk) -> HashMap<BlockPosition, FaceSet> {
   faces
 }
 
-fn generate_face_mesh(vertices: &mut Vec<Vertex>, block_position: BlockPosition, face: BoxFace) {
+fn generate_face_mesh(
+  vertices: &mut Vec<Vertex>,
+  texture_atlas: &TextureAtlas,
+  block_position: BlockPosition,
+  face: BoxFace,
+) {
   const FACE_VERTICES: usize = 6;
 
   let base_cube_face_offset = face_to_index(face);
@@ -118,10 +124,25 @@ fn generate_face_mesh(vertices: &mut Vec<Vertex>, block_position: BlockPosition,
 
   let new_vertices_start = vertices.len() - FACE_VERTICES;
   let world_position = layout::block_to_world(block_position);
-  for vertex in &mut vertices[new_vertices_start..] {
+  let texture_quad = texture_atlas.generate_texture_coordinates(face);
+
+  for (index, vertex) in vertices[new_vertices_start..].iter_mut().enumerate() {
     vertex.position[0] += world_position.x();
     vertex.position[1] += world_position.y();
     vertex.position[2] += world_position.z();
+
+    let (tex_x, tex_y) = match index {
+      0 => (texture_quad.left, texture_quad.top),
+      1 => (texture_quad.right, texture_quad.top),
+      2 => (texture_quad.left, texture_quad.bot),
+      3 => (texture_quad.left, texture_quad.bot),
+      4 => (texture_quad.right, texture_quad.top),
+      5 => (texture_quad.right, texture_quad.bot),
+      _ => unreachable!("invalid index"),
+    };
+
+    vertex.texture_coordinate[0] = tex_x;
+    vertex.texture_coordinate[1] = tex_y;
   }
 }
 
@@ -175,12 +196,12 @@ impl ChunkMesh {
     }
   }
 
-  pub fn generate_vertices(&mut self) -> Vec<Vertex> {
+  pub fn generate_vertices(&mut self, texture_atlas: &TextureAtlas) -> Vec<Vertex> {
     let mut vertices = Vec::with_capacity(self.last_vertices_len);
 
     for (&block_position, face_set) in &self.faces {
       for face in face_set.faces() {
-        generate_face_mesh(&mut vertices, block_position, face);
+        generate_face_mesh(&mut vertices, texture_atlas, block_position, face);
       }
     }
 
