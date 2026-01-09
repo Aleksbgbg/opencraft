@@ -232,6 +232,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "base"
+version = "0.0.0"
+dependencies = [
+ "zerocopy",
+]
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1807,6 +1814,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "arrayvec",
+ "base",
  "console_error_panic_hook",
  "console_log",
  "derive_more",

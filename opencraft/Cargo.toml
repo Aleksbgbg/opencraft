@@ -20,6 +20,7 @@ harness = false
 [dependencies]
 anyhow = { version = "1.0.100", default-features = false, features = ["backtrace", "std"] }
 arrayvec = { version = "0.7.6", default-features = false }
+base = { path = "../base", default-features = false }
 derive_more = { version = "2.1.1", default-features = false, features = ["add", "add_assign", "mul", "mul_assign", "not"] }
 env_logger = { version = "0.11.8", default-features = false, features = ["auto-color"] }
 flume = { git = "https://gitlab.com/Aleksbgbg/flume.git", default-features = false, features = ["select"] }
