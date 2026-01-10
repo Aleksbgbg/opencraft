@@ -66,35 +66,9 @@ fn main() {
     .plain
     .as_ref()
     .expect("plain block specification is required");
-  let palette = &plain.palette;
 
-  let palette_pixels: usize = palette
-    .iter()
-    .map(|pixel| pixel.frequency)
-    .sum::<u32>()
-    .try_into()
-    .unwrap();
-  if palette_pixels != PANE_PIXELS {
-    eprintln!(
-      "Palette should provide exactly {} pixels but provided {} pixels.",
-      PANE_PIXELS, palette_pixels
-    );
+  if !plain.validate() {
     return;
-  }
-
-  let mut pane_src = [Srgb::default(); PANE_PIXELS];
-  let mut pixel_index = 0;
-  // Sort the palette to ensure that rearranging the TOML file layout without
-  // changing the colours, frequency, or seed will still generate the same
-  // image.
-  for entry in palette.iter().sorted_by_key(|entry| entry.colour) {
-    let frequency = entry.frequency.try_into().unwrap();
-
-    for pixel_offset in 0..frequency {
-      pane_src[pixel_index + pixel_offset] = entry.colour;
-    }
-
-    pixel_index += frequency;
   }
 
   let seed = spec.seed.map(|seed| seed.value).unwrap_or_else(|| {
@@ -103,17 +77,13 @@ fn main() {
     bytes
   });
   let mut rng = ChaCha8Rng::from_seed(seed);
-  pane_src.shuffle(&mut rng);
 
-  let mut pane_dst = [Srgba::default(); PANE_PIXELS];
-  for index in 0..pane_src.len() {
-    pane_dst[index] = pane_src[index].into();
-  }
+  let texture = plain.generate(&mut rng);
 
   let mut file = File::create(&args.destination).expect("could not create destination file");
   PngEncoder::new_with_quality(&mut file, CompressionType::Level(9), FilterType::default())
     .write_image(
-      pane_dst.as_bytes(),
+      texture.as_bytes(),
       PANE_DIMENSION_PX_U32,
       PANE_DIMENSION_PX_U32,
       ExtendedColorType::Rgba8,
@@ -125,4 +95,57 @@ fn main() {
     seed,
     args.destination.display()
   );
+}
+
+trait Generator {
+  fn validate(&self) -> bool;
+
+  fn generate(&self, rng: &mut ChaCha8Rng) -> [Srgba; PANE_PIXELS];
+}
+
+impl Generator for PlainSpecification {
+  fn validate(&self) -> bool {
+    let palette_pixels: usize = self
+      .palette
+      .iter()
+      .map(|pixel| pixel.frequency)
+      .sum::<u32>()
+      .try_into()
+      .unwrap();
+    if palette_pixels == PANE_PIXELS {
+      true
+    } else {
+      eprintln!(
+        "Palette should provide exactly {} pixels but provided {} pixels.",
+        PANE_PIXELS, palette_pixels
+      );
+      false
+    }
+  }
+
+  fn generate(&self, rng: &mut ChaCha8Rng) -> [Srgba; PANE_PIXELS] {
+    let mut pane_src = [Srgb::default(); PANE_PIXELS];
+    let mut pixel_index = 0;
+    // Sort the palette to ensure that rearranging the TOML file layout without
+    // changing the colours, frequency, or seed will still generate the same
+    // image.
+    for entry in self.palette.iter().sorted_by_key(|entry| entry.colour) {
+      let frequency = entry.frequency.try_into().unwrap();
+
+      for pixel_offset in 0..frequency {
+        pane_src[pixel_index + pixel_offset] = entry.colour;
+      }
+
+      pixel_index += frequency;
+    }
+
+    pane_src.shuffle(rng);
+
+    let mut pane_dst = [Srgba::default(); PANE_PIXELS];
+    for index in 0..pane_src.len() {
+      pane_dst[index] = pane_src[index].into();
+    }
+
+    pane_dst
+  }
 }
