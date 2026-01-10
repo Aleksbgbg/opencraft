@@ -41,7 +41,7 @@ pub struct Srgba {
 }
 
 #[repr(C)]
-#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, IntoBytes, Deserialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Deserialize)]
 pub struct Srgb {
   r: u8,
   g: u8,
