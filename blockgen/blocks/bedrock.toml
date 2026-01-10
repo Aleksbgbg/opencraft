@@ -1,0 +1,65 @@
+[[base_stone.palette]]
+colour.r = 148
+colour.g = 148
+colour.b = 148
+frequency = 50
+
+[[base_stone.palette]]
+colour.r = 97
+colour.g = 97
+colour.b = 97
+frequency = 50
+
+[[base_stone.palette]]
+colour.r = 85
+colour.g = 85
+colour.b = 85
+frequency = 73
+
+[[base_stone.palette]]
+colour.r = 50
+colour.g = 50
+colour.b = 50
+frequency = 73
+
+[[base_stone.palette]]
+colour.r = 33
+colour.g = 33
+colour.b = 33
+frequency = 10
+
+[seed]
+value = [
+  0x6d,
+  0x49,
+  0x41,
+  0x38,
+  0x08,
+  0xef,
+  0x6c,
+  0x51,
+  0xa0,
+  0x20,
+  0x72,
+  0x93,
+  0x62,
+  0xb3,
+  0x52,
+  0xba,
+  0x3c,
+  0x33,
+  0xcc,
+  0x2e,
+  0x53,
+  0x04,
+  0x55,
+  0xb0,
+  0x28,
+  0xd0,
+  0x10,
+  0x70,
+  0xa3,
+  0x03,
+  0x68,
+  0x43,
+]
