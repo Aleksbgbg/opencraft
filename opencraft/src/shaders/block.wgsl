@@ -26,5 +26,5 @@ var texture_sampler: sampler;
 
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-  return textureSample(texture, texture_sampler, vertex.texture_coordinate);
+  return textureSampleBias(texture, texture_sampler, vertex.texture_coordinate, 0.0);
 }

@@ -1,3 +1,4 @@
+mod block_texture_mipmap;
 pub mod chunk_mesh;
 mod display;
 mod font_atlas;
@@ -44,9 +45,9 @@ use wgpu::{
   Buffer, BufferBindingType, BufferDescriptor, BufferUsages, Color, ColorTargetState, ColorWrites,
   CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Device,
   DeviceDescriptor, ExperimentalFeatures, Extent3d, Face, Features, FragmentState, FrontFace,
-  Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MultisampleState, Operations,
-  PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode,
-  PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
+  Instance, InstanceDescriptor, Limits, LoadOp, MemoryHints, MipmapFilterMode, MultisampleState,
+  Operations, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode, PowerPreference,
+  PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
   RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
   RequestAdapterOptions, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
   StencilState, StoreOp, Surface, SurfaceConfiguration, TextureDescriptor, TextureDimension,
@@ -481,10 +482,21 @@ impl Renderer {
     });
 
     let default_sampler = device.create_sampler(&SamplerDescriptor::default());
+    let mipmap_sampler = device.create_sampler(&SamplerDescriptor {
+      mipmap_filter: MipmapFilterMode::Linear,
+      ..Default::default()
+    });
 
     let assets = ResourceReader::new()?;
 
     let (block_texture_atlas, block_texture_atlas_image) = TextureAtlas::load(&assets).await?;
+    let block_texture_atlas_width = block_texture_atlas_image.width.coerce();
+    let block_texture_atlas_height = block_texture_atlas_image.height.coerce();
+    let block_texture_mipmap = block_texture_mipmap::generate(
+      &block_texture_atlas_image.rgba,
+      block_texture_atlas_width,
+      block_texture_atlas_height,
+    );
 
     let block_texture_atlas_texture = device.create_texture_with_data(
       &queue,
@@ -495,7 +507,7 @@ impl Renderer {
           height: block_texture_atlas_image.height,
           depth_or_array_layers: 1,
         },
-        mip_level_count: 1,
+        mip_level_count: block_texture_mipmap.mip_levels.coerce(),
         sample_count: 1,
         dimension: TextureDimension::D2,
         format: TextureFormat::Rgba8UnormSrgb,
@@ -503,7 +515,7 @@ impl Renderer {
         view_formats: &[],
       },
       TextureDataOrder::default(),
-      block_texture_atlas_image.rgba.as_bytes(),
+      block_texture_mipmap.rgba.as_bytes(),
     );
 
     let block_texture_atlas_view =
@@ -540,7 +552,7 @@ impl Renderer {
         },
         BindGroupEntry {
           binding: 1,
-          resource: BindingResource::Sampler(&default_sampler),
+          resource: BindingResource::Sampler(&mipmap_sampler),
         },
       ],
     });

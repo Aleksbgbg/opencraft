@@ -12,7 +12,7 @@ pub mod vec3;
 
 use crate::core::math::bivec3::BiVec3;
 use crate::core::math::vec3::Vec3;
-use crate::core::type_conversions::CoerceLossyRound;
+use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyRound};
 use std::ops::RangeInclusive;
 use strum::EnumIter;
 
@@ -97,6 +97,16 @@ pub fn affine_transform(
   ((value - input.start()) * scale_factor) + output.start()
 }
 
+pub fn geometric_sequence_sum(first_term: usize, common_ratio: usize, terms: usize) -> usize {
+  assert!(common_ratio > 1);
+
+  (first_term * (common_ratio.pow(terms.coerce()) - 1)) / (common_ratio - 1)
+}
+
 pub fn normalized_f32_to_u8(value: f32) -> u8 {
   (value * (f32::powf(2.0, 8.0) - 1.0)).coerce_lossy_round()
+}
+
+pub fn normalized_u8_to_f32(value: u8) -> f32 {
+  value.coerce_lossy() / (f32::powf(2.0, 8.0) - 1.0)
 }
