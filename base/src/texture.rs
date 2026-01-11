@@ -5,8 +5,6 @@ pub mod block {
   pub const PANE_DIMENSION_PX: usize = 16;
   pub const PANE_PIXELS: usize = PANE_DIMENSION_PX * PANE_DIMENSION_PX;
 
-  pub const PANE_DIMENSION_PX_U32: u32 = PANE_DIMENSION_PX as u32;
-
   pub const PANE_DIMENSION_PX_F32: f32 = PANE_DIMENSION_PX as f32;
 }
 

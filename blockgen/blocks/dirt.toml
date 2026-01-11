@@ -40,7 +40,7 @@ colour.g = 57
 colour.b = 38
 frequency = 40
 
-[seed]
+[plain.seed]
 value = [
   0x12,
   0xe9,

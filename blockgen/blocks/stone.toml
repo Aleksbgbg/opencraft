@@ -22,7 +22,7 @@ colour.g = 97
 colour.b = 97
 frequency = 25
 
-[seed]
+[base_stone.seed]
 value = [
   0xeb,
   0xbf,

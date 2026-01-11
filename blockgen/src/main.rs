@@ -1,5 +1,5 @@
 use base::texture;
-use base::texture::block::{PANE_DIMENSION_PX, PANE_DIMENSION_PX_U32, PANE_PIXELS};
+use base::texture::block::{PANE_DIMENSION_PX, PANE_PIXELS};
 use base::texture::{Srgb, Srgba};
 use clap::Parser;
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
@@ -29,6 +29,7 @@ struct Args {
   destination: PathBuf,
 }
 
+/// Seed to be used for a random number generator.
 #[derive(Deserialize)]
 struct Seed {
   value: [u8; SEED_BYTES],
@@ -42,19 +43,18 @@ struct PaletteEntry {
 
 #[derive(Deserialize)]
 struct PlainSpecification {
+  seed: Option<Seed>,
   palette: Vec<PaletteEntry>,
 }
 
 #[derive(Deserialize)]
 struct BaseStoneSpecification {
+  seed: Option<Seed>,
   palette: Vec<PaletteEntry>,
 }
 
 #[derive(Deserialize)]
 struct Specification {
-  /// Seed to be used for the random number generator.
-  seed: Option<Seed>,
-
   /// Parameters to generate a plain block, which has the same texture on all
   /// faces.
   ///
@@ -84,38 +84,35 @@ impl Specification {
 
 fn main() {
   let args = Args::parse();
-  let mut spec: Specification = toml::from_str(
+  let spec: Specification = toml::from_str(
     &fs::read_to_string(&args.specification).expect("could not read specification file"),
   )
   .expect("could not parse specification");
-
-  let seed = spec.seed.take().map(|seed| seed.value).unwrap_or_else(|| {
-    let mut bytes = [0; SEED_BYTES];
-    rand::fill(&mut bytes);
-    bytes
-  });
-  let mut rng = ChaCha8Rng::from_seed(seed);
 
   let generator = spec.extract_generator();
   if !generator.validate() {
     return;
   }
 
-  let texture = generator.generate(&mut rng);
+  let texture = generator.generate();
 
   let mut file = File::create(&args.destination).expect("could not create destination file");
   PngEncoder::new_with_quality(&mut file, CompressionType::Level(9), FilterType::default())
     .write_image(
-      texture.as_bytes(),
-      PANE_DIMENSION_PX_U32,
-      PANE_DIMENSION_PX_U32,
+      texture.rgba.as_bytes(),
+      texture.width.try_into().unwrap(),
+      texture.height.try_into().unwrap(),
       ExtendedColorType::Rgba8,
     )
     .expect("could not save texture");
 
   println!(
-    "Generated block texture with seed {:x?} and saved to file {}.",
-    seed,
+    "Generated block texture with seed(s) {} and saved to file {}.",
+    texture
+      .seeds
+      .iter()
+      .map(|seed| format!("{:x?}", seed))
+      .join(", "),
     args.destination.display()
   );
 }
@@ -136,6 +133,16 @@ fn validate_palette_specifies_all_pixels(palette: &[PaletteEntry]) -> bool {
     );
     false
   }
+}
+
+fn create_rng(seed: Option<&Seed>) -> (ChaCha8Rng, [u8; SEED_BYTES]) {
+  let seed = seed.map(|seed| seed.value).unwrap_or_else(|| {
+    let mut bytes = [0; SEED_BYTES];
+    rand::fill(&mut bytes);
+    bytes
+  });
+
+  (ChaCha8Rng::from_seed(seed), seed)
 }
 
 fn randomise_pane(palette: &[PaletteEntry], rng: &mut ChaCha8Rng) -> [Srgb; PANE_PIXELS] {
@@ -159,10 +166,18 @@ fn randomise_pane(palette: &[PaletteEntry], rng: &mut ChaCha8Rng) -> [Srgb; PANE
   pane
 }
 
+struct GeneratedImage {
+  rgba: Vec<Srgba>,
+  width: usize,
+  height: usize,
+
+  seeds: Vec<[u8; SEED_BYTES]>,
+}
+
 trait Generator {
   fn validate(&self) -> bool;
 
-  fn generate(&self, rng: &mut ChaCha8Rng) -> [Srgba; PANE_PIXELS];
+  fn generate(&self) -> GeneratedImage;
 }
 
 impl Generator for PlainSpecification {
@@ -170,15 +185,21 @@ impl Generator for PlainSpecification {
     validate_palette_specifies_all_pixels(&self.palette)
   }
 
-  fn generate(&self, rng: &mut ChaCha8Rng) -> [Srgba; PANE_PIXELS] {
-    let pane_src = randomise_pane(&self.palette, rng);
+  fn generate(&self) -> GeneratedImage {
+    let (mut rng, seed) = create_rng(self.seed.as_ref());
+    let pane_src = randomise_pane(&self.palette, &mut rng);
 
-    let mut pane_dst = [Srgba::default(); PANE_PIXELS];
+    let mut pane_dst = vec![Srgba::default(); PANE_PIXELS];
     for index in 0..pane_src.len() {
       pane_dst[index] = pane_src[index].into();
     }
 
-    pane_dst
+    GeneratedImage {
+      rgba: pane_dst,
+      width: PANE_DIMENSION_PX,
+      height: PANE_DIMENSION_PX,
+      seeds: vec![seed],
+    }
   }
 }
 
@@ -187,8 +208,9 @@ impl Generator for BaseStoneSpecification {
     validate_palette_specifies_all_pixels(&self.palette)
   }
 
-  fn generate(&self, rng: &mut ChaCha8Rng) -> [Srgba; PANE_PIXELS] {
-    let mut pane_src = randomise_pane(&self.palette, rng);
+  fn generate(&self) -> GeneratedImage {
+    let (mut rng, seed) = create_rng(self.seed.as_ref());
+    let mut pane_src = randomise_pane(&self.palette, &mut rng);
 
     // Group colours together in random run lengths to produce the distinct lines on
     // base stone textures.
@@ -208,7 +230,7 @@ impl Generator for BaseStoneSpecification {
         // HashMap keys must be sorted before picking a random key, as their order is
         // otherwise non-deterministic and results cannot be reproduced from the
         // random seed.
-        let colour = **frequency_map.keys().sorted().choose(rng).unwrap();
+        let colour = **frequency_map.keys().sorted().choose(&mut rng).unwrap();
         let colour_remaining_frequency = frequency_map.get_mut(&colour).unwrap();
 
         let repeats = rng.random_range(1..=*colour_remaining_frequency);
@@ -229,11 +251,16 @@ impl Generator for BaseStoneSpecification {
       pane_src[line_start..line_start + PANE_DIMENSION_PX].copy_from_slice(&new_line);
     }
 
-    let mut pane_dst = [Srgba::default(); PANE_PIXELS];
+    let mut pane_dst = vec![Srgba::default(); PANE_PIXELS];
     for index in 0..pane_src.len() {
       pane_dst[index] = pane_src[index].into();
     }
 
-    pane_dst
+    GeneratedImage {
+      rgba: pane_dst,
+      width: PANE_DIMENSION_PX,
+      height: PANE_DIMENSION_PX,
+      seeds: vec![seed],
+    }
   }
 }
