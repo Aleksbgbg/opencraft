@@ -5,9 +5,11 @@ use clap::Parser;
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{ExtendedColorType, ImageEncoder};
 use itertools::Itertools;
+use rand::prelude::IndexedRandom;
 use rand::seq::{IteratorRandom, SliceRandom};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use rand_distr::{Distribution, Normal};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -54,6 +56,13 @@ struct BaseStoneSpecification {
 }
 
 #[derive(Deserialize)]
+struct ToppedSpecification {
+  main: PlainSpecification,
+  top: PlainSpecification,
+  edge: Option<Srgb>,
+}
+
+#[derive(Deserialize)]
 struct Specification {
   /// Parameters to generate a plain block, which has the same texture on all
   /// faces.
@@ -67,15 +76,26 @@ struct Specification {
   ///
   /// Examples include stone and bedrock.
   base_stone: Option<BaseStoneSpecification>,
+
+  /// Parameters to generate a topped block, a special type of plain block.
+  /// Topped blocks are composed by generating a main plain block first, and
+  /// then replacing the top pane with the pane from generating a second plain
+  /// block. Finally, the side faces are modified by having colours from the
+  /// top pane trickle down by random pixel lengths.
+  ///
+  /// Examples include grass.
+  topped: Option<ToppedSpecification>,
 }
 
 impl Specification {
   fn extract_generator(&self) -> &dyn Generator {
     if let Some(plain) = &self.plain {
       plain
+    } else if let Some(base_stone) = &self.base_stone {
+      base_stone
     } else {
       self
-        .base_stone
+        .topped
         .as_ref()
         .expect("exactly one block specification must be provided")
     }
@@ -180,6 +200,19 @@ trait Generator {
   fn generate(&self) -> GeneratedImage;
 }
 
+impl PlainSpecification {
+  fn generate_pane(&self, rng: &mut ChaCha8Rng) -> (Vec<Srgba>, [Srgb; PANE_PIXELS]) {
+    let pane_src = randomise_pane(&self.palette, rng);
+
+    let mut pane_dst = vec![Srgba::default(); PANE_PIXELS];
+    for index in 0..pane_src.len() {
+      pane_dst[index] = pane_src[index].into();
+    }
+
+    (pane_dst, pane_src)
+  }
+}
+
 impl Generator for PlainSpecification {
   fn validate(&self) -> bool {
     validate_palette_specifies_all_pixels(&self.palette)
@@ -187,12 +220,8 @@ impl Generator for PlainSpecification {
 
   fn generate(&self) -> GeneratedImage {
     let (mut rng, seed) = create_rng(self.seed.as_ref());
-    let pane_src = randomise_pane(&self.palette, &mut rng);
 
-    let mut pane_dst = vec![Srgba::default(); PANE_PIXELS];
-    for index in 0..pane_src.len() {
-      pane_dst[index] = pane_src[index].into();
-    }
+    let (pane_dst, _) = self.generate_pane(&mut rng);
 
     GeneratedImage {
       rgba: pane_dst,
@@ -261,6 +290,78 @@ impl Generator for BaseStoneSpecification {
       width: PANE_DIMENSION_PX,
       height: PANE_DIMENSION_PX,
       seeds: vec![seed],
+    }
+  }
+}
+
+impl Generator for ToppedSpecification {
+  fn validate(&self) -> bool {
+    validate_palette_specifies_all_pixels(&self.main.palette)
+      && validate_palette_specifies_all_pixels(&self.top.palette)
+  }
+
+  fn generate(&self) -> GeneratedImage {
+    const FACES: usize = 3;
+
+    let (mut main_rng, main_seed) = create_rng(self.main.seed.as_ref());
+    let (mut top_rng, top_seed) = create_rng(self.top.seed.as_ref());
+
+    let (main_pixels, _) = self.main.generate_pane(&mut main_rng);
+    let (top_pixels, top_pane) = self.top.generate_pane(&mut top_rng);
+
+    let mut side_pixels = main_pixels.clone();
+    let distribution = Normal::new(3.0, 1.5).unwrap();
+    for x in 0..PANE_DIMENSION_PX {
+      let trickle_length = Distribution::<f32>::sample(&distribution, &mut top_rng)
+        .round()
+        .clamp(1.0, 4.0) as usize;
+
+      for y in 0..trickle_length {
+        let pixel = *top_pane.choose(&mut top_rng).unwrap();
+        let index = texture::offset_2d((x, y), PANE_DIMENSION_PX);
+        side_pixels[index] = pixel.into();
+      }
+
+      if let Some(pixel) = self.edge {
+        let index = texture::offset_2d((x, trickle_length), PANE_DIMENSION_PX);
+        side_pixels[index] = pixel.into();
+      }
+    }
+
+    let mut texture_pixels = vec![Srgba::default(); PANE_PIXELS * FACES];
+    texture::transfer_block(
+      &mut texture_pixels,
+      (0, 0),
+      PANE_DIMENSION_PX,
+      &top_pixels,
+      (0, 0),
+      PANE_DIMENSION_PX,
+      PANE_DIMENSION_PX,
+    );
+    texture::transfer_block(
+      &mut texture_pixels,
+      (0, PANE_DIMENSION_PX),
+      PANE_DIMENSION_PX,
+      &side_pixels,
+      (0, 0),
+      PANE_DIMENSION_PX,
+      PANE_DIMENSION_PX,
+    );
+    texture::transfer_block(
+      &mut texture_pixels,
+      (0, 2 * PANE_DIMENSION_PX),
+      PANE_DIMENSION_PX,
+      &main_pixels,
+      (0, 0),
+      PANE_DIMENSION_PX,
+      PANE_DIMENSION_PX,
+    );
+
+    GeneratedImage {
+      rgba: texture_pixels,
+      width: PANE_DIMENSION_PX,
+      height: 3 * PANE_DIMENSION_PX,
+      seeds: vec![main_seed, top_seed],
     }
   }
 }
