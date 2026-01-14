@@ -51,6 +51,10 @@ pub fn get_graphics_backend_string(backend: Backend) -> &'static str {
   }
 }
 
+pub fn num_cpus() -> usize {
+  num_cpus::get()
+}
+
 pub struct ResourceReader {
   assets: PathBuf,
 }

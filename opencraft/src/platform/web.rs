@@ -1,5 +1,6 @@
 mod entry;
 
+use crate::core::type_conversions::CoerceLossyFloor;
 use anyhow::Result;
 use gloo_timers::future::TimeoutFuture;
 use log::Level;
@@ -21,7 +22,6 @@ mod log_macros {
 }
 
 pub use log_macros::*;
-#[allow(unused_imports)]
 pub use wasm_thread as thread;
 
 pub type Instant = web_time::Instant;
@@ -68,6 +68,13 @@ pub fn get_graphics_backend_string(backend: Backend) -> &'static str {
     Backend::BrowserWebGpu => "WebGPU",
     Backend::Noop | Backend::Vulkan | Backend::Metal | Backend::Dx12 => unreachable!(),
   }
+}
+
+pub fn num_cpus() -> usize {
+  window()
+    .navigator()
+    .hardware_concurrency()
+    .coerce_lossy_floor()
 }
 
 pub struct ResourceReader {

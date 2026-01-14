@@ -82,6 +82,7 @@ coerce_lossy!(f32, u32);
 coerce!(usize, i32);
 coerce_lossy!(f32, i32);
 
+coerce_lossy_floor!(usize, f64);
 coerce_lossy!(f32, f64);
 
 coerce_lossy_round!(usize, f32);

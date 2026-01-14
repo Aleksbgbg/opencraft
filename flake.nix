@@ -124,6 +124,7 @@
           mkdir -p $out/assets
 
           cp -r assets $out
+          cp -r dist/snippets $out
           cp dist/${libraryName}_bg.wasm.opt $out/${libraryName}_bg.wasm
           cp dist/${libraryName}.js $out
           cp ${packageName}/pkg/index.html $out
