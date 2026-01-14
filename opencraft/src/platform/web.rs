@@ -21,6 +21,8 @@ mod log_macros {
 }
 
 pub use log_macros::*;
+#[allow(unused_imports)]
+pub use wasm_thread as thread;
 
 pub type Instant = web_time::Instant;
 

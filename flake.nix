@@ -38,6 +38,7 @@
       rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
         toolchain.minimal.override {
           targets = [buildTarget];
+          extensions = ["rust-src"];
         });
 
       wasm-bindgen-cli = pkgs.buildWasmBindgenCli rec {
@@ -97,6 +98,7 @@
         version = "0.0.0";
 
         src = lib.cleanSource ./.;
+        additionalCargoLock = "${rustToolchain}/lib/rustlib/src/rust/library/Cargo.lock";
 
         nativeBuildInputs = with pkgs; [
           wasm-bindgen-cli
@@ -111,6 +113,8 @@
             "--lib"
             "--target"
             buildTarget
+            "-Z"
+            "build-std=std,panic_abort"
           ];
 
         postInstall = ''

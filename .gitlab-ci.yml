@@ -38,4 +38,4 @@ bench:
   image: rust:latest
   needs: []
   script:
-    - cargo bench
+    - cargo bench -Z panic-abort-tests

@@ -5,10 +5,14 @@ members = [
   "static-file-server",
 ]
 
+[profile.dev]
+panic = "abort"
+
 [profile.fast-dev]
 inherits = "dev"
 opt-level = 1
 
 [profile.release]
+panic = "abort"
 opt-level = 3
 lto = "fat"

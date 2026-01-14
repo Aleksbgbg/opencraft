@@ -41,14 +41,20 @@ To build and run the project in the browser, install
 [wasm-pack](https://github.com/drager/wasm-pack) and build via the following
 command:
 ```
-wasm-pack build opencraft --target web --dev
+wasm-pack build opencraft --target web --dev -Z build-std=std,panic_abort
 ```
 
 Then use any web server to serve the generated static files. We have an
 embedded static file server in the project which can be used for this purpose:
 ```
-cargo run --bin static-file-server -- --port 8080 --directory opencraft/pkg
+cargo run --bin static-file-server -- \
+  --port 8080 --directory opencraft/pkg \
+  --header Cross-Origin-Opener-Policy --value same-origin \
+  --header Cross-Origin-Embedder-Policy --value require-corp
 ```
+
+Note: the COOP and COEP headers are required to enable shared memory between
+threads in the browser.
 
 Finally, navigate to `http://localhost:8080` in your browser to see the game
 run!

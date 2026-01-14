@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use std::path::PathBuf;
 use std::time::Duration;
-use std::{env, fs, thread};
+use std::{env, fs};
 use wgpu::Backend;
 use winit::window::WindowAttributes;
 
@@ -16,6 +16,7 @@ mod log_macros {
 }
 
 pub use log_macros::*;
+pub use std::thread;
 
 pub type Instant = std::time::Instant;
 
