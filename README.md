@@ -44,10 +44,10 @@ command:
 wasm-pack build opencraft --target web --dev
 ```
 
-Then use your favourite web server to serve the generated static files. For
-example, you can use Python's `http.server` module:
+Then use any web server to serve the generated static files. We have an
+embedded static file server in the project which can be used for this purpose:
 ```
-python3 -m http.server 8080 --directory opencraft/pkg
+cargo run --bin static-file-server -- --port 8080 --directory opencraft/pkg
 ```
 
 Finally, navigate to `http://localhost:8080` in your browser to see the game

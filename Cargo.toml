@@ -1,6 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["opencraft"]
+members = [
+  "opencraft",
+  "static-file-server",
+]
 
 [profile.fast-dev]
 inherits = "dev"

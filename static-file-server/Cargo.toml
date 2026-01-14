@@ -1,0 +1,13 @@
+[package]
+name = "static-file-server"
+version = "1.0.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8.8", default-features = false, features = ["http1", "tokio"] }
+clap = { version = "4.5.54", features = ["derive"] }
+thiserror = { version = "2.0.17", default-features = false }
+tokio = { version = "1.49.0", default-features = false, features = ["macros", "net", "rt-multi-thread", "signal"] }
+tower-http = { version = "0.6.8", default-features = false, features = ["fs", "trace"] }
+tracing = { version = "0.1.44", default-features = false }
+tracing-subscriber = { version = "0.3.22", default-features = false, features = ["ansi", "fmt"] }
