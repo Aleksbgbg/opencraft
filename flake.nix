@@ -103,7 +103,7 @@
         buildPhase = ''
           runHook preBuild
 
-          cargo build --lib --release --target ${buildTarget}
+          cargo build --package ${packageName} --lib --release --target ${buildTarget}
           wasm-bindgen target/${buildTarget}/release/${libraryName}.wasm --target web --out-dir dist
           wasm-opt dist/${libraryName}_bg.wasm -O -o dist/${libraryName}_bg.wasm.opt
 
