@@ -1,3 +1,5 @@
+mod font_atlas;
+
 use crate::camera::Direction;
 use crate::core;
 use crate::core::math;
@@ -8,8 +10,8 @@ use crate::core::math::vec2::Vec2;
 use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
 use crate::model::{BLOCK_LIMIT, CUBE_EXTENT, Scene};
 use crate::platform::ResourceReader;
+use crate::renderer::font_atlas::{FontAtlas, TextVertex};
 use crate::resources::Texture;
-use crate::text::{FontAtlas, TextVertex};
 use anyhow::Result;
 use image::GenericImageView;
 use std::sync::{Arc, LazyLock};

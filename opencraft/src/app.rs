@@ -8,7 +8,6 @@ mod model;
 mod platform;
 mod renderer;
 mod resources;
-mod text;
 mod windowing;
 
 use crate::core::math::vec2::Vec2;
