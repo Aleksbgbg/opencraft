@@ -1,4 +1,5 @@
 mod font_atlas;
+mod text_encoder;
 
 use crate::camera::Direction;
 use crate::core;
@@ -11,6 +12,7 @@ use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
 use crate::model::{BLOCK_LIMIT, CUBE_EXTENT, Scene};
 use crate::platform::ResourceReader;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
+use crate::renderer::text_encoder::{Anchor, TextEncoder};
 use crate::resources::Texture;
 use anyhow::Result;
 use image::GenericImageView;
@@ -1245,18 +1247,24 @@ impl Renderer {
       render_pass.draw(0..4, 0..1);
 
       if let Some(debug_display) = &scene.debug_display {
-        let fps_text = format!(
-          "FPS: {} ({:.3}ms)",
-          debug_display.frames_per_second, debug_display.mean_frame_time_ms
+        let mut text_encoder = TextEncoder::new(
+          &self.font_atlas,
+          PhysicalSize::new(self.config.width, self.config.height),
         );
 
-        let mut text_vertices = Vec::new();
-        self.font_atlas.push_text_vertices(
-          &fps_text,
-          PhysicalSize::new(5, 5),
-          PhysicalSize::new(self.config.width, self.config.height),
-          &mut text_vertices,
+        text_encoder.push_text_block(
+          &[&format!(
+            "FPS: {} ({:.3}ms)",
+            debug_display.frames_per_second, debug_display.mean_frame_time_ms
+          )],
+          Anchor {
+            left: Some(5),
+            top: Some(5),
+            ..Default::default()
+          },
         );
+
+        let text_vertices = text_encoder.finish();
 
         if let Some(text_buffer) = &self.text_buffer {
           if text_buffer.size() < core::slice_byte_len(&text_vertices).coerce() {

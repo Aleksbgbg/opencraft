@@ -71,13 +71,16 @@ macro_rules! coerce_lossy_ceil {
 }
 
 coerce!(u32, usize);
+coerce!(i32, usize);
 coerce_lossy!(f32, usize);
 coerce!(BufferAddress, usize);
 
 coerce!(usize, u32);
+coerce!(i32, u32);
 coerce_lossy!(f32, u32);
 
 coerce!(usize, i32);
+coerce_lossy!(f32, i32);
 
 coerce_lossy!(f32, f64);
 
@@ -85,4 +88,5 @@ coerce_lossy_round!(usize, f32);
 coerce_lossy_floor!(usize, f32);
 coerce_lossy_ceil!(usize, f32);
 coerce_lossy_floor!(u32, f32);
+coerce_lossy_ceil!(u32, f32);
 coerce_lossy_round!(u8, f32);

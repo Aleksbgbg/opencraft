@@ -1,6 +1,6 @@
 use crate::core::math;
 use crate::core::math::vec2::Vec2;
-use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyFloor};
+use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil, CoerceLossyFloor};
 use crate::platform::ResourceReader;
 use anyhow::Result;
 use rusttype::Scale;
@@ -61,8 +61,8 @@ impl FontAtlas {
       let positioned = scaled.positioned(rusttype::point(x_position, ascent_abs));
       let bounding_box = positioned.pixel_bounding_box().unwrap();
       positioned.draw(|x, y, alpha| {
-        let x = bounding_box.min.x.coerce() + x.coerce();
-        let y = bounding_box.min.y.coerce() + y.coerce();
+        let x = bounding_box.min.x.coerce() + Coerce::<usize>::coerce(x);
+        let y = bounding_box.min.y.coerce() + Coerce::<usize>::coerce(y);
 
         texture[(y * pixel_width) + x] = math::normalized_f32_to_u8(alpha);
       });
@@ -110,10 +110,28 @@ impl FontAtlas {
     )
   }
 
+  pub fn measure_text_width(&self, text: &str) -> u32 {
+    text
+      .chars()
+      .map(|char| {
+        if char == SPACE {
+          self.space_pixel_width
+        } else {
+          self.get_glyph_mapping(char).pixel_width
+        }
+      })
+      .sum::<f32>()
+      .coerce_lossy_ceil()
+  }
+
+  pub fn line_height(&self) -> u32 {
+    self.glyph_pixel_height.coerce_lossy_floor()
+  }
+
   pub fn push_text_vertices(
     &self,
     text: &str,
-    offset: PhysicalSize<u32>,
+    offset: PhysicalSize<i32>,
     screen_size: PhysicalSize<u32>,
     vertices: &mut Vec<TextVertex>,
   ) {
