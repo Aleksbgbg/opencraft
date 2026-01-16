@@ -2,6 +2,7 @@ use std::mem;
 
 #[allow(dead_code)]
 pub mod math;
+pub mod poll_on_interval;
 pub mod type_conversions;
 
 pub fn slice_byte_len<T>(slice: &[T]) -> usize {

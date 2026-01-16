@@ -2,6 +2,8 @@ use crate::core::type_conversions::Coerce;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
 use winit::dpi::PhysicalSize;
 
+pub const EMPTY_LINE: &str = "";
+
 enum Alignment {
   Left,
   Right,

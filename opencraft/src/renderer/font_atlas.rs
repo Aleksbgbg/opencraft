@@ -10,7 +10,7 @@ use zerocopy::{Immutable, IntoBytes};
 
 const SPACE: char = ' ';
 const FALLBACK_CHARACTER: char = '\0';
-const ALPHABET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.:()\0";
+const ALPHABET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:()\0";
 
 #[repr(C)]
 #[derive(Immutable, IntoBytes)]

@@ -1,3 +1,4 @@
+mod display;
 mod font_atlas;
 mod text_encoder;
 
@@ -7,16 +8,20 @@ use crate::core::math::angle::Angle;
 use crate::core::math::mat4;
 use crate::core::math::mat4::Mat4x4;
 use crate::core::math::vec2::Vec2;
+use crate::core::poll_on_interval::PollOnInterval;
 use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
 use crate::model::{BLOCK_LIMIT, CUBE_EXTENT, Scene};
 use crate::platform::ResourceReader;
+use crate::renderer::display::Bytes;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
-use crate::renderer::text_encoder::{Anchor, TextEncoder};
+use crate::renderer::text_encoder::{Anchor, EMPTY_LINE, TextEncoder};
 use crate::resources::Texture;
 use crate::{core, platform};
 use anyhow::Result;
 use image::GenericImageView;
+use memory_stats::MemoryStats;
 use std::sync::{Arc, LazyLock};
+use std::time::Duration;
 use std::{iter, mem};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::wgt::TextureDataOrder;
@@ -359,6 +364,7 @@ impl ScreenSpaceResources {
 
 pub struct Renderer {
   graphics_backend_string: &'static str,
+  memory_stats: PollOnInterval<Option<MemoryStats>>,
 
   font_atlas: FontAtlas,
 
@@ -1077,6 +1083,7 @@ impl Renderer {
 
     Ok(Self {
       graphics_backend_string: platform::get_graphics_backend_string(adapter.get_info().backend),
+      memory_stats: PollOnInterval::new(memory_stats::memory_stats, Duration::from_secs(2)),
       font_atlas,
       surface,
       device,
@@ -1266,14 +1273,30 @@ impl Renderer {
             ..Default::default()
           },
         );
-        text_encoder.push_text_block(
-          &[self.graphics_backend_string],
-          Anchor {
-            right: Some(5),
-            top: Some(5),
-            ..Default::default()
-          },
-        );
+
+        if let Some(usage) = self.memory_stats.poll() {
+          text_encoder.push_text_block(
+            &[
+              self.graphics_backend_string,
+              EMPTY_LINE,
+              &format!("RAM: {}", Bytes(usage.physical_mem)),
+            ],
+            Anchor {
+              right: Some(5),
+              top: Some(5),
+              ..Default::default()
+            },
+          );
+        } else {
+          text_encoder.push_text_block(
+            &[self.graphics_backend_string],
+            Anchor {
+              right: Some(5),
+              top: Some(5),
+              ..Default::default()
+            },
+          );
+        }
 
         let text_vertices = text_encoder.finish();
 
