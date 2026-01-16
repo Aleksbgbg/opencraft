@@ -70,7 +70,7 @@ impl FontAtlas {
       glyphs.insert(
         char,
         GlyphMapping {
-          texture_offset: Vec2::new(x_position, 0.0).normalise_components_to(texture_size),
+          texture_offset: Vec2::new(x_position, 0.0) / texture_size,
           pixel_width: glyph_pixel_width,
         },
       );
@@ -148,7 +148,7 @@ impl FontAtlas {
       let screen_y1 = screen_offset.y();
       let screen_y2 = screen_offset.y() + screen_size.y();
 
-      let texture_size = size.normalise_components_to(self.texture_size);
+      let texture_size = size / self.texture_size;
 
       let texture_x1 = mapping.texture_offset.x();
       let texture_x2 = mapping.texture_offset.x() + texture_size.x();

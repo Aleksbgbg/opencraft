@@ -66,7 +66,7 @@ impl Game {
   }
 
   pub fn motion(&mut self, direction: Vec2) {
-    self.mouse_movement += direction.normalise_components_to(self.renderer.screen_size());
+    self.mouse_movement += direction / self.renderer.screen_size();
   }
 
   fn update(&mut self, delta: Duration) {
