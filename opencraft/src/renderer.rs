@@ -376,10 +376,11 @@ pub struct Renderer {
 
   screen: ScreenSpaceResources,
 
+  vertex_buffer: Buffer,
+
   block_transform_buffer: Buffer,
   block_transform_bind_group: BindGroup,
   block_pipeline: RenderPipeline,
-  vertex_buffer: Buffer,
   grass_bind_group: BindGroup,
 
   block_outline_transform_buffer: Buffer,
@@ -449,6 +450,12 @@ impl Renderer {
     };
 
     surface.configure(&device, &config);
+
+    let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Vertex Buffer"),
+      contents: VERTICES.as_bytes(),
+      usage: BufferUsages::VERTEX,
+    });
 
     let default_sampler = device.create_sampler(&SamplerDescriptor::default());
 
@@ -596,12 +603,6 @@ impl Renderer {
       },
       multiview_mask: None,
       cache: None,
-    });
-
-    let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-      label: Some("Vertex Buffer"),
-      contents: VERTICES.as_bytes(),
-      usage: BufferUsages::VERTEX,
     });
 
     let block_outline_transform_buffer = device.create_buffer(&BufferDescriptor {
@@ -1093,10 +1094,10 @@ impl Renderer {
       config,
       default_sampler,
       screen,
+      vertex_buffer,
       block_transform_buffer,
       block_transform_bind_group,
       block_pipeline,
-      vertex_buffer,
       grass_bind_group,
       block_outline_transform_buffer,
       block_outline_transform_bind_group,
