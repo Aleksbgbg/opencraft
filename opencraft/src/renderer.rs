@@ -376,15 +376,15 @@ pub struct Renderer {
 
   screen: ScreenSpaceResources,
 
-  transform_buffer: Buffer,
-  transform_bind_group: BindGroup,
-  pipeline: RenderPipeline,
+  block_transform_buffer: Buffer,
+  block_transform_bind_group: BindGroup,
+  block_pipeline: RenderPipeline,
   vertex_buffer: Buffer,
   grass_bind_group: BindGroup,
 
-  outline_transform_buffer: Buffer,
-  outline_transform_bind_group: BindGroup,
-  outline_pipeline: RenderPipeline,
+  block_outline_transform_buffer: Buffer,
+  block_outline_transform_bind_group: BindGroup,
+  block_outline_pipeline: RenderPipeline,
 
   skybox_transform_buffer: Buffer,
   skybox_transform_bind_group: BindGroup,
@@ -515,45 +515,46 @@ impl Renderer {
       ],
     });
 
-    let transform_buffer = device.create_buffer(&BufferDescriptor {
-      label: Some("Model -> Clip Space Transform Buffer"),
+    let block_transform_buffer = device.create_buffer(&BufferDescriptor {
+      label: Some("Block Model -> Clip Space Transform Buffer"),
       size: (mem::size_of::<Mat4x4>() * BLOCK_LIMIT).coerce(),
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
       mapped_at_creation: false,
     });
-    let transform_buffer_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-      label: Some("Transform Buffer Bind Group Layout"),
-      entries: &[BindGroupLayoutEntry {
-        binding: 0,
-        visibility: ShaderStages::VERTEX,
-        ty: BindingType::Buffer {
-          ty: BufferBindingType::Uniform,
-          has_dynamic_offset: false,
-          min_binding_size: None,
-        },
-        count: None,
-      }],
-    });
-    let transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
-      label: Some("Transform Buffer Bind Group"),
-      layout: &transform_buffer_layout,
+    let block_transform_buffer_layout =
+      device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Block Transform Buffer Bind Group Layout"),
+        entries: &[BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::VERTEX,
+          ty: BindingType::Buffer {
+            ty: BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+          },
+          count: None,
+        }],
+      });
+    let block_transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Block Transform Buffer Bind Group"),
+      layout: &block_transform_buffer_layout,
       entries: &[BindGroupEntry {
         binding: 0,
-        resource: transform_buffer.as_entire_binding(),
+        resource: block_transform_buffer.as_entire_binding(),
       }],
     });
 
-    let shader = device.create_shader_module(include_wgsl!("shaders/cube.wgsl"));
-    let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-      label: Some("Render Pipeline Layout"),
-      bind_group_layouts: &[&transform_buffer_layout, &grass_bind_group_layout],
+    let block_shader = device.create_shader_module(include_wgsl!("shaders/block.wgsl"));
+    let block_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+      label: Some("Block Render Pipeline Layout"),
+      bind_group_layouts: &[&block_transform_buffer_layout, &grass_bind_group_layout],
       immediate_size: 0,
     });
-    let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-      label: Some("Render Pipeline"),
-      layout: Some(&layout),
+    let block_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+      label: Some("Block Render Pipeline"),
+      layout: Some(&block_layout),
       vertex: VertexState {
-        module: &shader,
+        module: &block_shader,
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
@@ -563,7 +564,7 @@ impl Renderer {
         }],
       },
       fragment: Some(FragmentState {
-        module: &shader,
+        module: &block_shader,
         entry_point: Some("fs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
@@ -603,15 +604,15 @@ impl Renderer {
       usage: BufferUsages::VERTEX,
     });
 
-    let outline_transform_buffer = device.create_buffer(&BufferDescriptor {
-      label: Some("Model -> Clip Space Transform Buffer"),
+    let block_outline_transform_buffer = device.create_buffer(&BufferDescriptor {
+      label: Some("Block Outline Model -> Clip Space Transform Buffer"),
       size: mem::size_of::<Mat4x4>().coerce(),
       usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
       mapped_at_creation: false,
     });
-    let outline_transform_buffer_layout =
+    let block_outline_transform_buffer_layout =
       device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Transform Buffer Bind Group Layout"),
+        label: Some("Block Outline Transform Buffer Bind Group Layout"),
         entries: &[BindGroupLayoutEntry {
           binding: 0,
           visibility: ShaderStages::VERTEX,
@@ -623,26 +624,27 @@ impl Renderer {
           count: None,
         }],
       });
-    let outline_transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
-      label: Some("Transform Buffer Bind Group"),
-      layout: &outline_transform_buffer_layout,
+    let block_outline_transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Block Outline Transform Buffer Bind Group"),
+      layout: &block_outline_transform_buffer_layout,
       entries: &[BindGroupEntry {
         binding: 0,
-        resource: outline_transform_buffer.as_entire_binding(),
+        resource: block_outline_transform_buffer.as_entire_binding(),
       }],
     });
 
-    let outline_shader = device.create_shader_module(include_wgsl!("shaders/cube_outline.wgsl"));
-    let outline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-      label: Some("Render Pipeline Layout"),
-      bind_group_layouts: &[&outline_transform_buffer_layout],
+    let block_outline_shader =
+      device.create_shader_module(include_wgsl!("shaders/block_outline.wgsl"));
+    let block_outline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+      label: Some("Block Outline Render Pipeline Layout"),
+      bind_group_layouts: &[&block_outline_transform_buffer_layout],
       immediate_size: 0,
     });
-    let outline_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-      label: Some("Render Pipeline"),
-      layout: Some(&outline_layout),
+    let block_outline_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+      label: Some("Block Outline Render Pipeline"),
+      layout: Some(&block_outline_layout),
       vertex: VertexState {
-        module: &outline_shader,
+        module: &block_outline_shader,
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
@@ -652,7 +654,7 @@ impl Renderer {
         }],
       },
       fragment: Some(FragmentState {
-        module: &outline_shader,
+        module: &block_outline_shader,
         entry_point: Some("fs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
@@ -1091,14 +1093,14 @@ impl Renderer {
       config,
       default_sampler,
       screen,
-      transform_buffer,
-      transform_bind_group,
-      pipeline,
+      block_transform_buffer,
+      block_transform_bind_group,
+      block_pipeline,
       vertex_buffer,
       grass_bind_group,
-      outline_transform_buffer,
-      outline_transform_bind_group,
-      outline_pipeline,
+      block_outline_transform_buffer,
+      block_outline_transform_bind_group,
+      block_outline_pipeline,
       skybox_transform_buffer,
       skybox_transform_bind_group,
       skybox_pipeline,
@@ -1176,7 +1178,7 @@ impl Renderer {
       .collect();
     self
       .queue
-      .write_buffer(&self.transform_buffer, 0, transforms.as_bytes());
+      .write_buffer(&self.block_transform_buffer, 0, transforms.as_bytes());
 
     let mut encoder = self
       .device
@@ -1213,20 +1215,20 @@ impl Renderer {
       render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
       render_pass.draw(0..VERTICES.len().coerce(), 0..1);
 
-      render_pass.set_pipeline(&self.pipeline);
-      render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
+      render_pass.set_pipeline(&self.block_pipeline);
+      render_pass.set_bind_group(0, &self.block_transform_bind_group, &[]);
       render_pass.set_bind_group(1, &self.grass_bind_group, &[]);
       render_pass.draw(0..VERTICES.len().coerce(), 0..scene.blocks.len().coerce());
 
       if let Some(index) = scene.target_block_index {
         self.queue.write_buffer(
-          &self.outline_transform_buffer,
+          &self.block_outline_transform_buffer,
           0,
           transforms.get(index).unwrap().as_bytes(),
         );
 
-        render_pass.set_pipeline(&self.outline_pipeline);
-        render_pass.set_bind_group(0, &self.outline_transform_bind_group, &[]);
+        render_pass.set_pipeline(&self.block_outline_pipeline);
+        render_pass.set_bind_group(0, &self.block_outline_transform_bind_group, &[]);
         render_pass.draw(0..VERTICES.len().coerce(), 0..1);
       }
     }
