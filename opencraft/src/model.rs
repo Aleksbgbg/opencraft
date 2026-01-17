@@ -55,7 +55,7 @@ pub struct Model {
 
 impl Model {
   pub fn new() -> Self {
-    let player_camera = Camera::default();
+    let player_camera = Camera::new(Vec3::new(0.0, 2.5, 0.0));
 
     let mut chunks = HashMap::with_capacity(VISIBLE_CHUNKS_USIZE);
     let loaded_chunks = iterators::surrounding_chunks(player_camera.position()).collect();
