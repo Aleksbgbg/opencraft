@@ -6,6 +6,7 @@ use crate::core::math::vec2::Vec2;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use crate::core::type_conversions::{CoerceLossy, CoerceLossyFloor};
+use arrayvec::ArrayVec;
 use std::collections::HashSet;
 use std::time::Duration;
 use winit::event::MouseButton;
@@ -31,7 +32,7 @@ pub struct UpdateInputs<'a> {
 
 pub struct Model {
   show_debug_display: bool,
-  frame_times: Vec<Duration>,
+  frame_times: ArrayVec<Duration, FRAME_TIME_MEASUREMENTS>,
   frame_time_stale_index: usize,
 
   player_camera: Camera,
@@ -44,7 +45,7 @@ impl Model {
   pub fn new() -> Self {
     Self {
       show_debug_display: cfg!(debug_assertions),
-      frame_times: Vec::with_capacity(FRAME_TIME_MEASUREMENTS),
+      frame_times: Default::default(),
       frame_time_stale_index: Default::default(),
       player_camera: Default::default(),
       blocks: Vec::from([CUBE_TRANSLATE]),

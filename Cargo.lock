@@ -1565,6 +1565,7 @@ name = "opencraft"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "console_error_panic_hook",
  "console_log",
  "derive_more",
