@@ -14,10 +14,11 @@ use crate::core::math::projection::Perspective;
 use crate::core::math::vec2::Vec2;
 use crate::core::poll_on_interval::PollOnInterval;
 use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
+use crate::core::work_queue::{Channel, Priority, WorkQueue};
 use crate::model::chunk::Chunk;
 use crate::model::layout::CUBE_EXTENT;
 use crate::model::position::{BlockPosition, ChunkPosition};
-use crate::model::{Scene, layout};
+use crate::model::{RenderResults, Scene, layout};
 use crate::platform::ResourceReader;
 use crate::renderer::chunk_mesh::ChunkMesh;
 use crate::renderer::display::Bytes;
@@ -377,6 +378,9 @@ impl ScreenSpaceResources {
 }
 
 pub struct Renderer {
+  work_queue: Arc<WorkQueue>,
+  chunk_mesh_channel: Channel<(Chunk, ChunkMesh)>,
+
   graphics_backend_string: &'static str,
   memory_stats: PollOnInterval<Option<MemoryStats>>,
 
@@ -421,7 +425,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-  pub async fn new(window: Arc<Window>) -> Result<Self> {
+  pub async fn new(work_queue: Arc<WorkQueue>, window: Arc<Window>) -> Result<Self> {
     let instance = Instance::new(&InstanceDescriptor {
       backends: Backends::all(),
       ..Default::default()
@@ -1105,6 +1109,8 @@ impl Renderer {
     );
 
     Ok(Self {
+      work_queue,
+      chunk_mesh_channel: Channel::unbounded(),
       graphics_backend_string: platform::get_graphics_backend_string(adapter.get_info().backend),
       memory_stats: PollOnInterval::new(memory_stats::memory_stats, Duration::from_secs(2)),
       font_atlas,
@@ -1176,24 +1182,16 @@ impl Renderer {
     );
   }
 
-  pub fn render(&mut self, scene: &Scene<'_>, view_direction: Direction) -> Result<()> {
+  pub fn render(&mut self, scene: Scene<'_>, view_direction: Direction) -> Result<RenderResults> {
     for position in scene.unloaded_chunks {
       self.chunks.remove(position);
     }
-    for (position, chunk) in scene
-      .loaded_chunks
-      .iter()
-      .filter_map(|position| scene.chunks.get(position).map(|chunk| (*position, chunk)))
-    {
-      self.chunks.insert(
-        position,
-        ChunkRender::load(
-          &ChunkGraphicsResources {
-            device: &self.device,
-          },
-          chunk,
-        ),
-      );
+    for chunk in scene.loaded_chunks {
+      let chunk_mesh_send = self.chunk_mesh_channel.send.clone();
+      self.work_queue.schedule(Priority::High, move || {
+        let mesh = ChunkMesh::generate(&chunk);
+        let _ = chunk_mesh_send.send((chunk, mesh));
+      });
     }
 
     for &(chunk_position, block_position) in scene.destroyed_blocks {
@@ -1417,7 +1415,24 @@ impl Renderer {
 
     output.present();
 
-    Ok(())
+    let mut newly_visible_chunks = Vec::new();
+    for (chunk, mesh) in self.chunk_mesh_channel.drain() {
+      self.chunks.insert(
+        chunk.position(),
+        ChunkRender::load(
+          &ChunkGraphicsResources {
+            device: &self.device,
+          },
+          chunk.position(),
+          mesh,
+        ),
+      );
+      newly_visible_chunks.push(chunk);
+    }
+
+    Ok(RenderResults {
+      newly_visible_chunks,
+    })
   }
 
   fn create_text_buffer(&mut self, text_vertices: &[TextVertex]) {
@@ -1454,13 +1469,16 @@ struct ChunkRender {
 }
 
 impl ChunkRender {
-  fn load(renderer: &ChunkGraphicsResources<'_>, chunk: &Chunk) -> Self {
-    let mut mesh = ChunkMesh::generate(chunk);
+  fn load(
+    renderer: &ChunkGraphicsResources<'_>,
+    position: ChunkPosition,
+    mut mesh: ChunkMesh,
+  ) -> Self {
     let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, &mut mesh);
 
     Self {
       mesh,
-      position: chunk.position(),
+      position,
       vertex_buffer,
       vertices_len,
     }

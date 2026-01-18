@@ -1,6 +1,7 @@
 use crate::camera::Direction;
 use crate::core::math::vec2::Vec2;
-use crate::model::{Model, UpdateInputs};
+use crate::core::work_queue::WorkQueue;
+use crate::model::{Model, RenderResults, UpdateInputs};
 use crate::platform::Instant;
 use crate::renderer::Renderer;
 use anyhow::Result;
@@ -23,18 +24,22 @@ pub struct Game {
 
   model: Model,
   renderer: Renderer,
+  render_results: Option<RenderResults>,
 }
 
 impl Game {
   pub async fn new(window: Arc<Window>) -> Result<Self> {
+    let work_queue = Arc::new(WorkQueue::new());
+
     Ok(Self {
       last: Instant::now(),
       keys_down: HashSet::new(),
       keys_released: HashSet::new(),
       mouse_movement: Vec2::default(),
       mouse_buttons_released: HashSet::new(),
-      model: Model::new(),
-      renderer: Renderer::new(window).await?,
+      model: Model::new(Arc::clone(&work_queue)),
+      renderer: Renderer::new(work_queue, window).await?,
+      render_results: None,
     })
   }
 
@@ -72,13 +77,16 @@ impl Game {
   }
 
   fn update(&mut self, delta: Duration) {
-    self.model.update(&UpdateInputs {
-      delta,
-      keys_down: &self.keys_down,
-      keys_released: &self.keys_released,
-      mouse_movement: self.mouse_movement,
-      mouse_buttons_released: &self.mouse_buttons_released,
-    });
+    self.model.update(
+      &UpdateInputs {
+        delta,
+        keys_down: &self.keys_down,
+        keys_released: &self.keys_released,
+        mouse_movement: self.mouse_movement,
+        mouse_buttons_released: &self.mouse_buttons_released,
+      },
+      self.render_results.take().unwrap_or_default(),
+    );
 
     self.keys_released.clear();
     self.mouse_movement = Vec2::default();
@@ -93,7 +101,7 @@ impl Game {
       Direction::Forward
     };
 
-    self.renderer.render(&scene, view_direction)?;
+    self.render_results = Some(self.renderer.render(scene, view_direction)?);
 
     Ok(())
   }

@@ -2,7 +2,7 @@ use crate::core::math;
 use crate::model::block::Block;
 use crate::model::position::BlockPosition;
 
-pub trait Generate {
+pub trait Generate: Send + Sync {
   fn generate(&self, block: BlockPosition) -> Block;
 }
 

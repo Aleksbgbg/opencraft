@@ -13,6 +13,7 @@ use crate::core::math::vec2::Vec2;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use crate::core::type_conversions::{CoerceLossy, CoerceLossyFloor};
+use crate::core::work_queue::{Channel, Priority, WorkQueue};
 use crate::model::block::Block;
 use crate::model::chunk::Chunk;
 use crate::model::layout::VISIBLE_CHUNKS_USIZE;
@@ -20,6 +21,7 @@ use crate::model::position::{BlockPosition, ChunkPosition};
 use crate::model::terrain::{ClassicFlat, Generate};
 use arrayvec::ArrayVec;
 use std::collections::{HashMap, HashSet};
+use std::mem;
 use std::sync::Arc;
 use std::time::Duration;
 use winit::event::MouseButton;
@@ -37,7 +39,15 @@ pub struct UpdateInputs<'a> {
   pub mouse_buttons_released: &'a HashSet<MouseButton>,
 }
 
+#[derive(Default)]
+pub struct RenderResults {
+  pub newly_visible_chunks: Vec<Chunk>,
+}
+
 pub struct Model {
+  work_queue: Arc<WorkQueue>,
+  chunk_channel: Channel<Chunk>,
+
   show_debug_display: bool,
   frame_times: ArrayVec<Duration, FRAME_TIME_MEASUREMENTS>,
   frame_time_stale_index: usize,
@@ -47,8 +57,9 @@ pub struct Model {
   generator: Arc<dyn Generate>,
   cached_modifications: HashMap<ChunkPosition, HashMap<BlockPosition, Block>>,
   chunks: HashMap<ChunkPosition, Chunk>,
+  discarded_chunk_count: HashMap<ChunkPosition, usize>,
   unloaded_chunks: Vec<ChunkPosition>,
-  loaded_chunks: Vec<ChunkPosition>,
+  loaded_chunks: Vec<Chunk>,
 
   destroyed_blocks: Vec<(ChunkPosition, BlockPosition)>,
   created_blocks: Vec<(ChunkPosition, BlockPosition)>,
@@ -56,29 +67,34 @@ pub struct Model {
 }
 
 impl Model {
-  pub fn new() -> Self {
+  pub fn new(work_queue: Arc<WorkQueue>) -> Self {
+    let chunk_channel = Channel::unbounded();
+
     let player_camera = Camera::new(Vec3::new(0.0, 2.5, 0.0));
     let generator: Arc<dyn Generate> = Arc::new(ClassicFlat);
 
-    let mut chunks = HashMap::with_capacity(VISIBLE_CHUNKS_USIZE);
-    let loaded_chunks = iterators::surrounding_chunks(player_camera.position()).collect();
-    for &chunk_position in &loaded_chunks {
-      chunks.insert(
-        chunk_position,
-        Chunk::load(chunk_position, Arc::clone(&generator), HashMap::default()),
-      );
+    for chunk_position in iterators::surrounding_chunks(player_camera.position()) {
+      let generator = Arc::clone(&generator);
+      let chunk_send = chunk_channel.send.clone();
+      work_queue.schedule(Priority::Low, move || {
+        let chunk = Chunk::load(chunk_position, generator, HashMap::default());
+        let _ = chunk_send.send(chunk);
+      });
     }
 
     Self {
+      work_queue,
+      chunk_channel,
       show_debug_display: cfg!(debug_assertions),
       frame_times: Default::default(),
       frame_time_stale_index: Default::default(),
       player_camera,
       generator,
       cached_modifications: Default::default(),
-      chunks,
+      chunks: HashMap::with_capacity(VISIBLE_CHUNKS_USIZE),
+      discarded_chunk_count: Default::default(),
       unloaded_chunks: Default::default(),
-      loaded_chunks,
+      loaded_chunks: Default::default(),
       destroyed_blocks: Default::default(),
       created_blocks: Default::default(),
       target_block: Default::default(),
@@ -94,6 +110,9 @@ impl Model {
       mouse_movement,
       mouse_buttons_released,
     }: &UpdateInputs<'_>,
+    RenderResults {
+      newly_visible_chunks,
+    }: RenderResults,
   ) {
     const PLAYER_MOVEMENT_SPEED: f32 = 10.0;
     const PLAYER_CAMERA_ROTATION_SPEED: Angle = FULL_ROTATION;
@@ -105,6 +124,18 @@ impl Model {
       } else {
         self.frame_times[self.frame_time_stale_index] = delta;
         self.frame_time_stale_index = (self.frame_time_stale_index + 1) % FRAME_TIME_MEASUREMENTS;
+      }
+    }
+
+    for chunk in self.chunk_channel.drain() {
+      if let Some(key) = self.discarded_chunk_count.get_mut(&chunk.position()) {
+        *key -= 1;
+
+        if *key == 0 {
+          self.discarded_chunk_count.remove(&chunk.position());
+        }
+      } else {
+        self.loaded_chunks.push(chunk);
       }
     }
 
@@ -147,31 +178,36 @@ impl Model {
         iterators::chunk_difference(position_before, position_after)
       {
         for chunk_position in unloaded_chunks {
-          let chunk = self.chunks.remove(&chunk_position).unwrap();
-          let chunk_modifications = chunk.unload();
-          if !chunk_modifications.is_empty() {
-            self
-              .cached_modifications
-              .insert(chunk_position, chunk_modifications);
-          }
+          if self.chunks.contains_key(&chunk_position) {
+            let chunk = self.chunks.remove(&chunk_position).unwrap();
+            let chunk_modifications = chunk.unload();
+            if !chunk_modifications.is_empty() {
+              self
+                .cached_modifications
+                .insert(chunk_position, chunk_modifications);
+            }
 
-          self.unloaded_chunks.push(chunk_position);
+            self.unloaded_chunks.push(chunk_position);
+          } else {
+            self
+              .discarded_chunk_count
+              .entry(chunk_position)
+              .and_modify(|count| *count += 1)
+              .or_insert(1);
+          }
         }
         for chunk_position in loaded_chunks {
           let chunk_modifications = self
             .cached_modifications
             .remove(&chunk_position)
             .unwrap_or_default();
-          self.chunks.insert(
-            chunk_position,
-            Chunk::load(
-              chunk_position,
-              Arc::clone(&self.generator),
-              chunk_modifications,
-            ),
-          );
 
-          self.loaded_chunks.push(chunk_position);
+          let generator = Arc::clone(&self.generator);
+          let chunk_send = self.chunk_channel.send.clone();
+          self.work_queue.schedule(Priority::Low, move || {
+            let chunk = Chunk::load(chunk_position, generator, chunk_modifications);
+            let _ = chunk_send.send(chunk);
+          });
         }
       }
     }
@@ -230,12 +266,26 @@ impl Model {
       intersection
     };
 
+    for chunk in newly_visible_chunks {
+      if let Some(key) = self.discarded_chunk_count.get_mut(&chunk.position()) {
+        *key -= 1;
+
+        if *key == 0 {
+          self.discarded_chunk_count.remove(&chunk.position());
+        }
+
+        self.unloaded_chunks.push(chunk.position());
+      } else {
+        self.chunks.insert(chunk.position(), chunk);
+      }
+    }
+
     if keys_released.contains(&KeyCode::F3) {
       self.show_debug_display = !self.show_debug_display;
     }
   }
 
-  pub fn scene(&self) -> Scene<'_> {
+  pub fn scene(&mut self) -> Scene<'_> {
     let mean_frame_time_ms = self
       .frame_times
       .iter()
@@ -258,7 +308,7 @@ impl Model {
       player_camera: &self.player_camera,
       chunks: &self.chunks,
       unloaded_chunks: &self.unloaded_chunks,
-      loaded_chunks: &self.loaded_chunks,
+      loaded_chunks: mem::take(&mut self.loaded_chunks),
       destroyed_blocks: &self.destroyed_blocks,
       created_blocks: &self.created_blocks,
       target_block: self
@@ -304,7 +354,7 @@ pub struct Scene<'a> {
 
   pub chunks: &'a HashMap<ChunkPosition, Chunk>,
   pub unloaded_chunks: &'a [ChunkPosition],
-  pub loaded_chunks: &'a [ChunkPosition],
+  pub loaded_chunks: Vec<Chunk>,
 
   pub destroyed_blocks: &'a [(ChunkPosition, BlockPosition)],
   pub created_blocks: &'a [(ChunkPosition, BlockPosition)],
