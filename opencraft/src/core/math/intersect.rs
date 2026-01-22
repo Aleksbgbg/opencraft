@@ -3,8 +3,9 @@ use crate::core::math::aligned_box3::AlignedBox3;
 use crate::core::math::segment3::Segment3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{Direction, X_AXIS, Y_AXIS, Z_AXIS};
+use strum::{EnumIter, IntoEnumIterator};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, EnumIter)]
 pub enum BoxFace {
   XPos,
   XNeg,
@@ -35,16 +36,7 @@ impl From<BoxFace> for Direction {
 
 impl AlignedBox3 {
   pub fn find_intersecting_face(&self, segment: &Segment3) -> Option<BoxFace> {
-    const FACES: [BoxFace; 6] = [
-      BoxFace::XPos,
-      BoxFace::XNeg,
-      BoxFace::YPos,
-      BoxFace::YNeg,
-      BoxFace::ZPos,
-      BoxFace::ZNeg,
-    ];
-
-    for face in FACES {
+    for face in BoxFace::iter() {
       let normal = face.normal();
       let direction_match = Vec3::dot(segment.direction(), normal);
 

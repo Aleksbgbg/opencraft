@@ -26,6 +26,7 @@ itertools = { version = "0.14.0", default-features = false }
 memory-stats = { version = "1.2.0", default-features = false }
 pollster = { version = "0.4.0", default-features = false }
 rusttype = { version = "0.9.3", default-features = false, features = ["std"] }
+strum = { version = "0.27.2", default-features = false, features = ["derive"] }
 thousands = { version = "0.2.0", default-features = false }
 wgpu = { version = "28.0.0", default-features = false, features = ["wgsl", "vulkan"] }
 winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "x11"] }
