@@ -74,7 +74,23 @@ fn chunk_mesh_generate_slow(bencher: Bencher) {
   );
 
   bencher.bench_local(move || {
-    black_box(ChunkMesh::generate(black_box(&chunk)));
+    let mut mesh = ChunkMesh::generate(black_box(&chunk));
+    black_box(mesh.generate_vertices());
+  });
+}
+
+#[divan::bench]
+fn chunk_mesh_update_incremental_slow(bencher: Bencher) {
+  let chunk = Chunk::load(
+    ChunkPosition::default(),
+    Arc::new(AllGrass),
+    HashMap::default(),
+  );
+  let mut mesh = ChunkMesh::generate(&chunk);
+
+  bencher.bench_local(move || {
+    black_box(&mut mesh).update_incremental(black_box(&chunk), black_box(BlockPosition::default()));
+    black_box(mesh.generate_vertices());
   });
 }
 

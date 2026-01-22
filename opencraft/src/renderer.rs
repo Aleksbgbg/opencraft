@@ -1413,29 +1413,32 @@ struct ChunkGraphicsResources<'a> {
   device: &'a Device,
 }
 
-fn regenerate_chunk(renderer: &ChunkGraphicsResources<'_>, chunk: &Chunk) -> (Buffer, u32) {
-  let mesh = ChunkMesh::generate(chunk);
+fn regenerate_chunk(renderer: &ChunkGraphicsResources<'_>, mesh: &mut ChunkMesh) -> (Buffer, u32) {
+  let vertices = mesh.generate_vertices();
 
-  (
-    renderer.device.create_buffer_init(&BufferInitDescriptor {
-      label: Some("Chunk Vertex Buffer"),
-      contents: mesh.vertices.as_bytes(),
-      usage: BufferUsages::VERTEX,
-    }),
-    mesh.vertices.len().coerce(),
-  )
+  let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+    label: Some("Chunk Vertex Buffer"),
+    contents: vertices.as_bytes(),
+    usage: BufferUsages::VERTEX,
+  });
+  let vertices_len = vertices.len().coerce();
+
+  (vertex_buffer, vertices_len)
 }
 
 struct ChunkRender {
+  mesh: ChunkMesh,
   vertex_buffer: Buffer,
   vertices_len: u32,
 }
 
 impl ChunkRender {
   fn load(renderer: &ChunkGraphicsResources<'_>, chunk: &Chunk) -> Self {
-    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, chunk);
+    let mut mesh = ChunkMesh::generate(chunk);
+    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, &mut mesh);
 
     Self {
+      mesh,
       vertex_buffer,
       vertices_len,
     }
@@ -1445,9 +1448,11 @@ impl ChunkRender {
     &mut self,
     renderer: &ChunkGraphicsResources<'_>,
     chunk: &Chunk,
-    _block_position: BlockPosition,
+    block_position: BlockPosition,
   ) {
-    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, chunk);
+    self.mesh.update_incremental(chunk, block_position);
+
+    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, &mut self.mesh);
 
     self.vertex_buffer = vertex_buffer;
     self.vertices_len = vertices_len;
@@ -1457,9 +1462,11 @@ impl ChunkRender {
     &mut self,
     renderer: &ChunkGraphicsResources<'_>,
     chunk: &Chunk,
-    _block_position: BlockPosition,
+    block_position: BlockPosition,
   ) {
-    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, chunk);
+    self.mesh.update_incremental(chunk, block_position);
+
+    let (vertex_buffer, vertices_len) = regenerate_chunk(renderer, &mut self.mesh);
 
     self.vertex_buffer = vertex_buffer;
     self.vertices_len = vertices_len;

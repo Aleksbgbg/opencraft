@@ -3,9 +3,9 @@ use crate::core::math::aligned_box3::AlignedBox3;
 use crate::core::math::segment3::Segment3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{Direction, X_AXIS, Y_AXIS, Z_AXIS};
-use strum::{EnumIter, IntoEnumIterator};
+use strum::{EnumCount, EnumIter, IntoEnumIterator};
 
-#[derive(Debug, Clone, Copy, PartialEq, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, EnumCount, EnumIter)]
 pub enum BoxFace {
   XPos,
   XNeg,
@@ -18,6 +18,17 @@ pub enum BoxFace {
 impl BoxFace {
   pub fn normal(self) -> Vec3 {
     Into::<Direction>::into(self).normal()
+  }
+
+  pub fn opposite(self) -> Self {
+    match self {
+      BoxFace::XPos => BoxFace::XNeg,
+      BoxFace::XNeg => BoxFace::XPos,
+      BoxFace::YPos => BoxFace::YNeg,
+      BoxFace::YNeg => BoxFace::YPos,
+      BoxFace::ZPos => BoxFace::ZNeg,
+      BoxFace::ZNeg => BoxFace::ZPos,
+    }
   }
 }
 
