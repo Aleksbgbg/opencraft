@@ -17,8 +17,10 @@ use crate::model::block::Block;
 use crate::model::chunk::Chunk;
 use crate::model::layout::VISIBLE_CHUNKS_USIZE;
 use crate::model::position::{BlockPosition, ChunkPosition};
+use crate::model::terrain::{ClassicFlat, Generate};
 use arrayvec::ArrayVec;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::Duration;
 use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
@@ -44,6 +46,7 @@ pub struct Model {
 
   player_camera: Camera,
 
+  generator: Arc<dyn Generate>,
   cached_modifications: HashMap<ChunkPosition, HashMap<BlockPosition, Block>>,
   chunks: HashMap<ChunkPosition, Chunk>,
   unloaded_chunks: Vec<ChunkPosition>,
@@ -57,13 +60,14 @@ pub struct Model {
 impl Model {
   pub fn new() -> Self {
     let player_camera = Camera::new(Vec3::new(0.0, 2.5, 0.0));
+    let generator: Arc<dyn Generate> = Arc::new(ClassicFlat);
 
     let mut chunks = HashMap::with_capacity(VISIBLE_CHUNKS_USIZE);
     let loaded_chunks = iterators::surrounding_chunks(player_camera.position()).collect();
     for &chunk_position in &loaded_chunks {
       chunks.insert(
         chunk_position,
-        Chunk::load(chunk_position, HashMap::default()),
+        Chunk::load(chunk_position, Arc::clone(&generator), HashMap::default()),
       );
     }
 
@@ -72,6 +76,7 @@ impl Model {
       frame_times: Default::default(),
       frame_time_stale_index: Default::default(),
       player_camera,
+      generator,
       cached_modifications: Default::default(),
       chunks,
       unloaded_chunks: Default::default(),
@@ -161,7 +166,11 @@ impl Model {
             .unwrap_or_default();
           self.chunks.insert(
             chunk_position,
-            Chunk::load(chunk_position, chunk_modifications),
+            Chunk::load(
+              chunk_position,
+              Arc::clone(&self.generator),
+              chunk_modifications,
+            ),
           );
 
           self.loaded_chunks.push(chunk_position);
