@@ -62,8 +62,8 @@ impl FontAtlas {
       let positioned = scaled.positioned(rusttype::point(x_position, ascent_abs));
       let bounding_box = positioned.pixel_bounding_box().unwrap();
       positioned.draw(|x, y, alpha| {
-        let x = bounding_box.min.x.coerce() + Coerce::<usize>::coerce(x);
-        let y = bounding_box.min.y.coerce() + Coerce::<usize>::coerce(y);
+        let x = Coerce::<usize>::coerce(bounding_box.min.x) + Coerce::<usize>::coerce(x);
+        let y = Coerce::<usize>::coerce(bounding_box.min.y) + Coerce::<usize>::coerce(y);
 
         texture[texture::offset_2d((x, y), pixel_width)] = math::normalized_f32_to_u8(alpha);
       });

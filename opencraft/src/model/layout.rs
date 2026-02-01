@@ -2,7 +2,7 @@ use crate::core::math;
 use crate::core::math::Direction;
 use crate::core::math::aligned_box3::AlignedBox3;
 use crate::core::math::vec3::Vec3;
-use crate::core::type_conversions::{CoerceLossy, CoerceLossyFloor};
+use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyFloor};
 use crate::model::position::{BlockPosition, ChunkPosition};
 
 const CUBE_SIZE: f32 = 1.0;
@@ -89,6 +89,19 @@ pub fn chunk_bounds(chunk_position: ChunkPosition) -> (BlockPosition, BlockPosit
     BlockPosition::new(min_x, Y_MIN_BLOCK_VALUE, min_z),
     BlockPosition::new(max_x, Y_MAX_BLOCK_VALUE, max_z),
   )
+}
+
+pub fn block_index(block_position: BlockPosition) -> u32 {
+  let chunk = block_to_chunk(block_position);
+  let (chunk_block_min, _) = chunk_bounds(chunk);
+
+  let relative_block_position = block_position - chunk_block_min;
+
+  let x = relative_block_position.x();
+  let y = relative_block_position.y() + BELOW_GROUND_LEVELS;
+  let z = relative_block_position.z();
+
+  ((y * CHUNK_BASE_SIZE * CHUNK_BASE_SIZE) + (z * CHUNK_BASE_SIZE) + x).coerce()
 }
 
 pub fn advance_in_direction(

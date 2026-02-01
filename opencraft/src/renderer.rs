@@ -2,6 +2,7 @@ mod block_texture_mipmap;
 pub mod chunk_mesh;
 mod display;
 mod font_atlas;
+mod line;
 mod text_encoder;
 pub mod texture_atlas;
 mod vertex;
@@ -193,6 +194,13 @@ pub const CUBE_VERTICES: &[Vertex] = &[
 ];
 
 #[repr(C)]
+#[derive(Default, Immutable, IntoBytes)]
+struct SelectedIndex {
+  selected_index: u32,
+  padding: [u8; 12],
+}
+
+#[repr(C)]
 #[derive(Clone, Copy, Default, Immutable, IntoBytes)]
 pub struct Quad {
   left: f32,
@@ -328,15 +336,13 @@ pub struct Renderer {
   cube_vertex_buffer: Buffer,
 
   block_world_to_screen_transform_buffer: Buffer,
-  block_world_to_screen_transform_bind_group: BindGroup,
+  block_selected_index_buffer: Buffer,
   block_pipeline: RenderPipeline,
-  block_texture_atlas_bind_group: BindGroup,
+  block_bind_group: BindGroup,
+  block_selected_index_bind_group: BindGroup,
+  block_empty_selected_index_bind_group: BindGroup,
 
   chunks: HashMap<ChunkPosition, ChunkRender>,
-
-  block_outline_transform_buffer: Buffer,
-  block_outline_transform_bind_group: BindGroup,
-  block_outline_pipeline: RenderPipeline,
 
   skybox_transform_buffer: Buffer,
   skybox_transform_bind_group: BindGroup,
@@ -414,6 +420,29 @@ impl Renderer {
       ..Default::default()
     });
 
+    let block_world_to_screen_transform_buffer = device.create_buffer(&BufferDescriptor {
+      label: Some("Block World -> Clip Transform Buffer"),
+      size: mem::size_of::<Mat4x4>().coerce(),
+      usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+      mapped_at_creation: false,
+    });
+
+    let block_selected_index_buffer = device.create_buffer(&BufferDescriptor {
+      label: Some("Block Selected Index Buffer"),
+      size: mem::size_of::<SelectedIndex>().coerce(),
+      usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+      mapped_at_creation: false,
+    });
+    let block_empty_selected_index_buffer = device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Block Empty Selected Index Buffer"),
+      contents: SelectedIndex {
+        selected_index: u32::MAX,
+        ..Default::default()
+      }
+      .as_bytes(),
+      usage: BufferUsages::UNIFORM,
+    });
+
     let assets = ResourceReader::new()?;
 
     let (block_texture_atlas, block_texture_atlas_image) = TextureAtlas::load(&assets).await?;
@@ -444,55 +473,114 @@ impl Renderer {
       TextureDataOrder::default(),
       block_texture_mipmap.rgba.as_bytes(),
     );
-
     let block_texture_atlas_view =
       block_texture_atlas_texture.create_view(&TextureViewDescriptor::default());
-    let block_texture_atlas_bind_group_layout =
-      device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Block Texture Atlas Bind Group Layout"),
-        entries: &[
-          BindGroupLayoutEntry {
-            binding: 0,
-            visibility: ShaderStages::FRAGMENT,
-            ty: BindingType::Texture {
-              sample_type: TextureSampleType::Float { filterable: true },
-              view_dimension: TextureViewDimension::D2,
-              multisampled: false,
-            },
-            count: None,
+
+    const BLOCK_OUTLINE_RESOLUTION_PX: usize = 80;
+    const BLOCK_OUTLINE_WIDTH_PX: f32 = 1.0;
+
+    let block_outline_image =
+      line::generate_line_image(BLOCK_OUTLINE_RESOLUTION_PX, BLOCK_OUTLINE_WIDTH_PX);
+
+    let block_outline_texture = device.create_texture_with_data(
+      &queue,
+      &TextureDescriptor {
+        label: Some("Block Outline Alpha Texture"),
+        size: Extent3d {
+          width: block_outline_image.width,
+          height: block_outline_image.height,
+          depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::R8Unorm,
+        usage: TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+      },
+      TextureDataOrder::default(),
+      &block_outline_image.alpha,
+    );
+    let block_outline_texture_view =
+      block_outline_texture.create_view(&TextureViewDescriptor::default());
+
+    let block_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+      label: Some("Block Bind Group Layout"),
+      entries: &[
+        BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::VERTEX,
+          ty: BindingType::Buffer {
+            ty: BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
           },
-          BindGroupLayoutEntry {
-            binding: 1,
-            visibility: ShaderStages::FRAGMENT,
-            ty: BindingType::Sampler(SamplerBindingType::Filtering),
-            count: None,
+          count: None,
+        },
+        BindGroupLayoutEntry {
+          binding: 1,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Texture {
+            sample_type: TextureSampleType::Float { filterable: true },
+            view_dimension: TextureViewDimension::D2,
+            multisampled: false,
           },
-        ],
-      });
-    let block_texture_atlas_bind_group = device.create_bind_group(&BindGroupDescriptor {
+          count: None,
+        },
+        BindGroupLayoutEntry {
+          binding: 2,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Sampler(SamplerBindingType::Filtering),
+          count: None,
+        },
+        BindGroupLayoutEntry {
+          binding: 3,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Texture {
+            sample_type: TextureSampleType::Float { filterable: true },
+            view_dimension: TextureViewDimension::D2,
+            multisampled: false,
+          },
+          count: None,
+        },
+        BindGroupLayoutEntry {
+          binding: 4,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Sampler(SamplerBindingType::Filtering),
+          count: None,
+        },
+      ],
+    });
+    let block_bind_group = device.create_bind_group(&BindGroupDescriptor {
       label: Some("Block Texture Atlas Bind Group"),
-      layout: &block_texture_atlas_bind_group_layout,
+      layout: &block_bind_group_layout,
       entries: &[
         BindGroupEntry {
           binding: 0,
-          resource: BindingResource::TextureView(&block_texture_atlas_view),
+          resource: block_world_to_screen_transform_buffer.as_entire_binding(),
         },
         BindGroupEntry {
           binding: 1,
+          resource: BindingResource::TextureView(&block_texture_atlas_view),
+        },
+        BindGroupEntry {
+          binding: 2,
           resource: BindingResource::Sampler(&mipmap_sampler),
+        },
+        BindGroupEntry {
+          binding: 3,
+          resource: BindingResource::TextureView(&block_outline_texture_view),
+        },
+        BindGroupEntry {
+          binding: 4,
+          resource: BindingResource::Sampler(&default_sampler),
         },
       ],
     });
 
-    let block_world_to_screen_transform_buffer = device.create_buffer(&BufferDescriptor {
-      label: Some("Block World -> Screen Transform Buffer"),
-      size: mem::size_of::<Mat4x4>().coerce(),
-      usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-      mapped_at_creation: false,
-    });
-    let block_world_to_screen_transform_layout =
+    let block_selected_index_bind_group_layout =
       device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Block World -> Screen Transform Buffer Bind Group Layout"),
+        label: Some("Block Selected Index Bind Group Layout"),
         entries: &[BindGroupLayoutEntry {
           binding: 0,
           visibility: ShaderStages::VERTEX,
@@ -504,22 +592,29 @@ impl Renderer {
           count: None,
         }],
       });
-    let block_world_to_screen_transform_bind_group =
-      device.create_bind_group(&BindGroupDescriptor {
-        label: Some("Block World -> Screen Transform Buffer Bind Group"),
-        layout: &block_world_to_screen_transform_layout,
-        entries: &[BindGroupEntry {
-          binding: 0,
-          resource: block_world_to_screen_transform_buffer.as_entire_binding(),
-        }],
-      });
+    let block_selected_index_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Block Selected Index Bind Group"),
+      layout: &block_selected_index_bind_group_layout,
+      entries: &[BindGroupEntry {
+        binding: 0,
+        resource: block_selected_index_buffer.as_entire_binding(),
+      }],
+    });
+    let block_empty_selected_index_bind_group = device.create_bind_group(&BindGroupDescriptor {
+      label: Some("Block Selected Index Bind Group"),
+      layout: &block_selected_index_bind_group_layout,
+      entries: &[BindGroupEntry {
+        binding: 0,
+        resource: block_empty_selected_index_buffer.as_entire_binding(),
+      }],
+    });
 
     let block_shader = device.create_shader_module(include_wgsl!("shaders/block.wgsl"));
     let block_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
       label: Some("Block Render Pipeline Layout"),
       bind_group_layouts: &[
-        &block_world_to_screen_transform_layout,
-        &block_texture_atlas_bind_group_layout,
+        &block_bind_group_layout,
+        &block_selected_index_bind_group_layout,
       ],
       immediate_size: 0,
     });
@@ -533,95 +628,16 @@ impl Renderer {
         buffers: &[VertexBufferLayout {
           array_stride: mem::size_of::<BlockVertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
-          attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x2],
+          attributes: &vertex_attr_array![
+            0 => Float32x3,
+            1 => Float32x2,
+            2 => Float32x2,
+            3 => Uint32,
+          ],
         }],
       },
       fragment: Some(FragmentState {
         module: &block_shader,
-        entry_point: Some("fs_main"),
-        compilation_options: PipelineCompilationOptions::default(),
-        targets: &[Some(ColorTargetState {
-          format: config.format,
-          blend: Some(BlendState::REPLACE),
-          write_mask: ColorWrites::ALL,
-        })],
-      }),
-      primitive: PrimitiveState {
-        topology: PrimitiveTopology::TriangleList,
-        strip_index_format: None,
-        front_face: FrontFace::Cw,
-        cull_mode: Some(Face::Back),
-        unclipped_depth: false,
-        polygon_mode: PolygonMode::Fill,
-        conservative: false,
-      },
-      depth_stencil: Some(DepthStencilState {
-        format: DEPTH_FORMAT,
-        depth_write_enabled: true,
-        depth_compare: CompareFunction::Less,
-        stencil: StencilState::default(),
-        bias: DepthBiasState::default(),
-      }),
-      multisample: MultisampleState {
-        count: 1,
-        mask: !0,
-        alpha_to_coverage_enabled: false,
-      },
-      multiview_mask: None,
-      cache: None,
-    });
-
-    let block_outline_transform_buffer = device.create_buffer(&BufferDescriptor {
-      label: Some("Block Outline Model -> Clip Space Transform Buffer"),
-      size: mem::size_of::<Mat4x4>().coerce(),
-      usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-      mapped_at_creation: false,
-    });
-    let block_outline_transform_buffer_layout =
-      device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Block Outline Transform Buffer Bind Group Layout"),
-        entries: &[BindGroupLayoutEntry {
-          binding: 0,
-          visibility: ShaderStages::VERTEX,
-          ty: BindingType::Buffer {
-            ty: BufferBindingType::Uniform,
-            has_dynamic_offset: false,
-            min_binding_size: None,
-          },
-          count: None,
-        }],
-      });
-    let block_outline_transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
-      label: Some("Block Outline Transform Buffer Bind Group"),
-      layout: &block_outline_transform_buffer_layout,
-      entries: &[BindGroupEntry {
-        binding: 0,
-        resource: block_outline_transform_buffer.as_entire_binding(),
-      }],
-    });
-
-    let block_outline_shader =
-      device.create_shader_module(include_wgsl!("shaders/block_outline.wgsl"));
-    let block_outline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-      label: Some("Block Outline Render Pipeline Layout"),
-      bind_group_layouts: &[&block_outline_transform_buffer_layout],
-      immediate_size: 0,
-    });
-    let block_outline_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-      label: Some("Block Outline Render Pipeline"),
-      layout: Some(&block_outline_layout),
-      vertex: VertexState {
-        module: &block_outline_shader,
-        entry_point: Some("vs_main"),
-        compilation_options: PipelineCompilationOptions::default(),
-        buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<Vertex>().coerce(),
-          step_mode: VertexStepMode::Vertex,
-          attributes: &vertex_attr_array![0 => Float32x3],
-        }],
-      },
-      fragment: Some(FragmentState {
-        module: &block_outline_shader,
         entry_point: Some("fs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         targets: &[Some(ColorTargetState {
@@ -1065,13 +1081,12 @@ impl Renderer {
       screen,
       cube_vertex_buffer,
       block_world_to_screen_transform_buffer,
-      block_world_to_screen_transform_bind_group,
+      block_selected_index_buffer,
       block_pipeline,
-      block_texture_atlas_bind_group,
+      block_bind_group,
+      block_selected_index_bind_group,
+      block_empty_selected_index_bind_group,
       chunks: HashMap::new(),
-      block_outline_transform_buffer,
-      block_outline_transform_bind_group,
-      block_outline_pipeline,
       skybox_transform_buffer,
       skybox_transform_bind_group,
       skybox_pipeline,
@@ -1216,21 +1231,9 @@ impl Renderer {
       render_pass.set_vertex_buffer(0, self.cube_vertex_buffer.slice(..));
       render_pass.draw(0..CUBE_VERTICES.len().coerce(), 0..1);
 
-      if let Some(target_block) = &scene.target_block {
-        self.queue.write_buffer(
-          &self.block_outline_transform_buffer,
-          0,
-          (&world_to_screen_space * &mat4::translate(target_block.world_position)).as_bytes(),
-        );
-
-        render_pass.set_pipeline(&self.block_outline_pipeline);
-        render_pass.set_bind_group(0, &self.block_outline_transform_bind_group, &[]);
-        render_pass.draw(0..CUBE_VERTICES.len().coerce(), 0..1);
-      }
-
       render_pass.set_pipeline(&self.block_pipeline);
-      render_pass.set_bind_group(0, &self.block_world_to_screen_transform_bind_group, &[]);
-      render_pass.set_bind_group(1, &self.block_texture_atlas_bind_group, &[]);
+      render_pass.set_bind_group(0, &self.block_bind_group, &[]);
+      render_pass.set_bind_group(1, &self.block_empty_selected_index_bind_group, &[]);
 
       let frustum = Frustum3::new(
         scene.player_camera.position(),
@@ -1245,7 +1248,21 @@ impl Renderer {
         .sorted_by_cached_key(|chunk| ChunkPosition::dist_sq(chunk.position, player_chunk))
       {
         render_pass.set_vertex_buffer(0, chunk.vertex_buffer.slice(..));
-        render_pass.draw(0..chunk.vertices_len, 0..1);
+        if let Some(target_block) = &scene.target_block
+          && target_block.chunk_position == chunk.position
+        {
+          self.queue.write_buffer(
+            &self.block_selected_index_buffer,
+            0,
+            layout::block_index(target_block.block_position).as_bytes(),
+          );
+
+          render_pass.set_bind_group(1, &self.block_selected_index_bind_group, &[]);
+          render_pass.draw(0..chunk.vertices_len, 0..1);
+          render_pass.set_bind_group(1, &self.block_empty_selected_index_bind_group, &[]);
+        } else {
+          render_pass.draw(0..chunk.vertices_len, 0..1);
+        }
       }
     }
     {

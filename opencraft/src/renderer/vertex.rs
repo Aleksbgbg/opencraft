@@ -13,4 +13,6 @@ pub struct Vertex {
 pub struct BlockVertex {
   pub position: Vec3,
   pub texture_coordinate: Vec2,
+  pub line_coordinates: Vec2,
+  pub block_index: u32,
 }

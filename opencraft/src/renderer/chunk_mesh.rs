@@ -134,6 +134,7 @@ fn generate_face_mesh(
   let new_vertices_start = vertices.len() - FACE_VERTICES;
   let world_position = layout::block_to_world(block_position);
   let texture_quad = texture_atlas.generate_texture_coordinates(block, face);
+  let block_index = layout::block_index(block_position);
 
   for (index, vertex) in vertices[new_vertices_start..].iter_mut().enumerate() {
     vertex.position += world_position;
@@ -146,6 +147,16 @@ fn generate_face_mesh(
       5 => Vec2::new(texture_quad.right, texture_quad.bot),
       _ => unreachable!("invalid index"),
     };
+    vertex.line_coordinates = match index {
+      0 => Vec2::new(1.0, 1.0),
+      1 => Vec2::new(1.0, 0.0),
+      2 => Vec2::new(0.0, 1.0),
+      3 => Vec2::new(1.0, 0.0),
+      4 => Vec2::new(0.0, 1.0),
+      5 => Vec2::new(1.0, 1.0),
+      _ => unreachable!("invalid index"),
+    };
+    vertex.block_index = block_index;
   }
 }
 
