@@ -20,74 +20,69 @@ pub trait CoerceLossyCeil<T> {
   fn coerce_lossy_ceil(self) -> T;
 }
 
-impl Coerce<u32> for usize {
-  fn coerce(self) -> u32 {
-    self.try_into().unwrap()
-  }
+macro_rules! coerce {
+  ($dst:ty, $src:ty) => {
+    impl Coerce<$dst> for $src {
+      fn coerce(self) -> $dst {
+        self.try_into().unwrap()
+      }
+    }
+  };
 }
 
-impl CoerceLossy<f32> for usize {
-  fn coerce_lossy(self) -> f32 {
-    self as f32
-  }
+macro_rules! coerce_lossy {
+  ($dst:ty, $src:ty) => {
+    impl CoerceLossy<$dst> for $src {
+      fn coerce_lossy(self) -> $dst {
+        self as $dst
+      }
+    }
+  };
 }
 
-impl Coerce<BufferAddress> for usize {
-  fn coerce(self) -> BufferAddress {
-    self.try_into().unwrap()
-  }
+macro_rules! coerce_lossy_round {
+  ($dst:ty, $src:ty) => {
+    impl CoerceLossyRound<$dst> for $src {
+      fn coerce_lossy_round(self) -> $dst {
+        self.round() as $dst
+      }
+    }
+  };
 }
 
-impl Coerce<usize> for u32 {
-  fn coerce(self) -> usize {
-    self.try_into().unwrap()
-  }
+macro_rules! coerce_lossy_floor {
+  ($dst:ty, $src:ty) => {
+    impl CoerceLossyFloor<$dst> for $src {
+      fn coerce_lossy_floor(self) -> $dst {
+        self.floor() as $dst
+      }
+    }
+  };
 }
 
-impl CoerceLossy<f32> for u32 {
-  fn coerce_lossy(self) -> f32 {
-    self as f32
-  }
+macro_rules! coerce_lossy_ceil {
+  ($dst:ty, $src:ty) => {
+    impl CoerceLossyCeil<$dst> for $src {
+      fn coerce_lossy_ceil(self) -> $dst {
+        self.ceil() as $dst
+      }
+    }
+  };
 }
 
-impl Coerce<usize> for i32 {
-  fn coerce(self) -> usize {
-    self.try_into().unwrap()
-  }
-}
+coerce!(u32, usize);
+coerce_lossy!(f32, usize);
+coerce!(BufferAddress, usize);
 
-impl CoerceLossy<f32> for f64 {
-  fn coerce_lossy(self) -> f32 {
-    self as f32
-  }
-}
+coerce!(usize, u32);
+coerce_lossy!(f32, u32);
 
-impl CoerceLossyRound<usize> for f32 {
-  fn coerce_lossy_round(self) -> usize {
-    self.round() as usize
-  }
-}
+coerce!(usize, i32);
 
-impl CoerceLossyFloor<usize> for f32 {
-  fn coerce_lossy_floor(self) -> usize {
-    self.floor() as usize
-  }
-}
+coerce_lossy!(f32, f64);
 
-impl CoerceLossyCeil<usize> for f32 {
-  fn coerce_lossy_ceil(self) -> usize {
-    self.ceil() as usize
-  }
-}
-
-impl CoerceLossyFloor<u32> for f32 {
-  fn coerce_lossy_floor(self) -> u32 {
-    self.floor() as u32
-  }
-}
-
-impl CoerceLossyRound<u8> for f32 {
-  fn coerce_lossy_round(self) -> u8 {
-    self.round() as u8
-  }
-}
+coerce_lossy_round!(usize, f32);
+coerce_lossy_floor!(usize, f32);
+coerce_lossy_ceil!(usize, f32);
+coerce_lossy_floor!(u32, f32);
+coerce_lossy_round!(u8, f32);
