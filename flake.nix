@@ -8,6 +8,9 @@
 
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+
+    naersk.url = "github:nix-community/naersk";
+    naersk.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -15,6 +18,7 @@
     nixpkgs,
     flake-utils,
     rust-overlay,
+    naersk,
     ...
   }: let
     packageName = "opencraft";
@@ -36,11 +40,6 @@
           targets = [buildTarget];
         });
 
-      rustPlatform = pkgs.makeRustPlatform {
-        cargo = rustToolchain;
-        rustc = rustToolchain;
-      };
-
       wasm-bindgen-cli = pkgs.buildWasmBindgenCli rec {
         src = pkgs.fetchCrate {
           pname = "wasm-bindgen-cli";
@@ -48,11 +47,16 @@
           hash = "sha256-M6WuGl7EruNopHZbqBpucu4RWz44/MSdv6f0zkYw+44=";
         };
 
-        cargoDeps = rustPlatform.fetchCargoVendor {
+        cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
           inherit src;
           inherit (src) pname version;
           hash = "sha256-ElDatyOwdKwHg3bNH/1pcxKI7LXkhsotlDPQjiLHBwA=";
         };
+      };
+
+      naersk' = pkgs.callPackage naersk {
+        cargo = rustToolchain;
+        rustc = rustToolchain;
       };
     in {
       devShells.default = pkgs.mkShell rec {
@@ -88,29 +92,30 @@
         LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
       };
 
-      packages.default = rustPlatform.buildRustPackage {
+      packages.default = naersk'.buildPackage {
         name = packageName;
         version = "0.0.0";
 
         src = lib.cleanSource ./.;
-        cargoLock.lockFile = ./Cargo.lock;
 
         nativeBuildInputs = with pkgs; [
           wasm-bindgen-cli
           binaryen
         ];
 
-        buildPhase = ''
-          runHook preBuild
+        cargoBuildOptions = prev:
+          prev
+          ++ [
+            "--package"
+            packageName
+            "--lib"
+            "--target"
+            buildTarget
+          ];
 
-          cargo build --package ${packageName} --lib --release --target ${buildTarget}
+        postInstall = ''
           wasm-bindgen target/${buildTarget}/release/${libraryName}.wasm --target web --out-dir dist
           wasm-opt dist/${libraryName}_bg.wasm -O -o dist/${libraryName}_bg.wasm.opt
-
-          runHook postBuild
-        '';
-        installPhase = ''
-          runHook preInstall
 
           mkdir -p $out/assets
 
@@ -118,8 +123,6 @@
           cp dist/${libraryName}_bg.wasm.opt $out/${libraryName}_bg.wasm
           cp dist/${libraryName}.js $out
           cp ${packageName}/pkg/index.html $out
-
-          runHook postInstall
         '';
       };
     })
