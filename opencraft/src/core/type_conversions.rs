@@ -8,6 +8,18 @@ pub trait CoerceLossy<T> {
   fn coerce_lossy(self) -> T;
 }
 
+pub trait CoerceLossyRound<T> {
+  fn coerce_lossy_round(self) -> T;
+}
+
+pub trait CoerceLossyFloor<T> {
+  fn coerce_lossy_floor(self) -> T;
+}
+
+pub trait CoerceLossyCeil<T> {
+  fn coerce_lossy_ceil(self) -> T;
+}
+
 impl Coerce<u32> for usize {
   fn coerce(self) -> u32 {
     self.try_into().unwrap()
@@ -50,20 +62,32 @@ impl CoerceLossy<f32> for f64 {
   }
 }
 
-impl CoerceLossy<usize> for f32 {
-  fn coerce_lossy(self) -> usize {
-    self as usize
+impl CoerceLossyRound<usize> for f32 {
+  fn coerce_lossy_round(self) -> usize {
+    self.round() as usize
   }
 }
 
-impl CoerceLossy<u32> for f32 {
-  fn coerce_lossy(self) -> u32 {
-    self as u32
+impl CoerceLossyFloor<usize> for f32 {
+  fn coerce_lossy_floor(self) -> usize {
+    self.floor() as usize
   }
 }
 
-impl CoerceLossy<u8> for f32 {
-  fn coerce_lossy(self) -> u8 {
-    self as u8
+impl CoerceLossyCeil<usize> for f32 {
+  fn coerce_lossy_ceil(self) -> usize {
+    self.ceil() as usize
+  }
+}
+
+impl CoerceLossyFloor<u32> for f32 {
+  fn coerce_lossy_floor(self) -> u32 {
+    self.floor() as u32
+  }
+}
+
+impl CoerceLossyRound<u8> for f32 {
+  fn coerce_lossy_round(self) -> u8 {
+    self.round() as u8
   }
 }

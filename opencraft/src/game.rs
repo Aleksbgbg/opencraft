@@ -8,7 +8,7 @@ use crate::core::math::segment3::Segment3;
 use crate::core::math::vec2::Vec2;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS, mat4};
-use crate::core::type_conversions::{Coerce, CoerceLossy};
+use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
 use crate::platform::{Instant, ResourceReader};
 use crate::resources::Texture;
 use crate::text::{FontAtlas, TextVertex};
@@ -267,7 +267,7 @@ struct Quad {
 fn calculate_crosshair_quad(screen_size: Vec2, crosshair_size: u32) -> Quad {
   const WIDTH_FRACTION: f32 = 0.008;
 
-  let size_pixels = (WIDTH_FRACTION * screen_size.x()).ceil().coerce_lossy();
+  let size_pixels = (WIDTH_FRACTION * screen_size.x()).coerce_lossy_ceil();
   let size_pixels = math::align(size_pixels, crosshair_size.coerce());
 
   let (pixels_left, pixels_right) = math::split(size_pixels.coerce_lossy());

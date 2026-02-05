@@ -1,6 +1,6 @@
 use crate::core::math;
 use crate::core::math::vec2::Vec2;
-use crate::core::type_conversions::{Coerce, CoerceLossy};
+use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyFloor};
 use crate::platform::ResourceReader;
 use anyhow::Result;
 use rusttype::Scale;
@@ -46,8 +46,8 @@ impl FontAtlas {
     let descent_abs = v_metrics.descent.abs();
     let pixel_height_float = (ascent_abs + 1.0 + descent_abs).ceil();
 
-    let pixel_width: usize = pixel_width_float.coerce_lossy();
-    let pixel_height: usize = pixel_height_float.coerce_lossy();
+    let pixel_width: usize = pixel_width_float.coerce_lossy_floor();
+    let pixel_height: usize = pixel_height_float.coerce_lossy_floor();
 
     let mut texture = vec![0; pixel_width * pixel_height];
     let texture_size = Vec2::new(pixel_width_float, pixel_height_float);
@@ -105,8 +105,8 @@ impl FontAtlas {
 
   pub fn dimensions(&self) -> (u32, u32) {
     (
-      self.texture_size.x().coerce_lossy(),
-      self.texture_size.y().coerce_lossy(),
+      self.texture_size.x().coerce_lossy_floor(),
+      self.texture_size.y().coerce_lossy_floor(),
     )
   }
 

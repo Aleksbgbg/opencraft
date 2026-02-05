@@ -9,7 +9,7 @@ pub mod vec3;
 
 use crate::core::math::bivec3::BiVec3;
 use crate::core::math::vec3::Vec3;
-use crate::core::type_conversions::CoerceLossy;
+use crate::core::type_conversions::CoerceLossyRound;
 use std::ops::RangeInclusive;
 
 pub const X_AXIS: Vec3 = Vec3::new(1.0, 0.0, 0.0);
@@ -68,5 +68,5 @@ pub fn affine_transform(
 }
 
 pub fn normalized_f32_to_u8(value: f32) -> u8 {
-  (value * (f32::powf(2.0, 8.0) - 1.0)).round().coerce_lossy()
+  (value * (f32::powf(2.0, 8.0) - 1.0)).coerce_lossy_round()
 }
