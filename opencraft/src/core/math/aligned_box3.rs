@@ -50,7 +50,7 @@ impl AlignedBox3 {
       let normal = face.normal();
       let direction_match = Vec3::dot(segment.direction(), normal);
 
-      if direction_match > 0.0 {
+      if direction_match >= 0.0 {
         continue;
       }
 
