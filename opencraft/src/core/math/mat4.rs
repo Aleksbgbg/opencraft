@@ -1,4 +1,4 @@
-use crate::core::math::angle::Angle;
+use crate::core::math::projection::Perspective;
 use crate::core::math::rotor3::Rotor3;
 use crate::core::math::vec3::Vec3;
 use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
@@ -57,23 +57,15 @@ impl Mul<&Mat4x4> for &Mat4x4 {
   }
 }
 
-pub fn perspective(
-  width: f32,
-  height: f32,
-  horizontal_fov: Angle,
-  z_near: f32,
-  z_far: f32,
-) -> Mat4x4 {
-  let projection_distance = 1.0 / (horizontal_fov / 2.0).tan();
-  let inverse_aspect_ratio = width / height;
-  let depth_scale = z_far / (z_far - z_near);
+pub fn perspective(projection: &Perspective) -> Mat4x4 {
+  let depth_scale = projection.z_far() / (projection.z_far() - projection.z_near());
 
   let mut mat = Mat4x4::default();
-  mat[(0, 0)] = projection_distance;
-  mat[(1, 1)] = inverse_aspect_ratio * projection_distance;
+  mat[(0, 0)] = projection.projection_distance();
+  mat[(1, 1)] = projection.inverse_aspect_ratio() * projection.projection_distance();
   mat[(2, 2)] = depth_scale;
   mat[(2, 3)] = 1.0;
-  mat[(3, 2)] = -z_near * depth_scale;
+  mat[(3, 2)] = -projection.z_near() * depth_scale;
   mat
 }
 

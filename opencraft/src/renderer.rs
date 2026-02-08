@@ -8,6 +8,7 @@ use crate::core::math;
 use crate::core::math::angle::Angle;
 use crate::core::math::mat4;
 use crate::core::math::mat4::Mat4x4;
+use crate::core::math::projection::Perspective;
 use crate::core::math::vec2::Vec2;
 use crate::core::poll_on_interval::PollOnInterval;
 use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
@@ -291,7 +292,7 @@ const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 /// Resources that need to be constructed based on the screen's resolution, and
 /// therefore reconstructed on resize.
 struct ScreenSpaceResources {
-  perspective: Mat4x4,
+  projection_matrix: Mat4x4,
   depth_view: TextureView,
   render_view: TextureView,
   fullscreen_copy_texture_bind_group: BindGroup,
@@ -353,14 +354,15 @@ impl ScreenSpaceResources {
       ],
     });
 
+    let projection = Perspective::new(
+      Vec2::new(width.coerce_lossy(), height.coerce_lossy()),
+      *HORIZONTAL_FOV,
+      Z_NEAR,
+      Z_FAR,
+    );
+
     Self {
-      perspective: mat4::perspective(
-        width.coerce_lossy(),
-        height.coerce_lossy(),
-        *HORIZONTAL_FOV,
-        Z_NEAR,
-        Z_FAR,
-      ),
+      projection_matrix: mat4::perspective(&projection),
       depth_view: depth_texture.create_view(&TextureViewDescriptor::default()),
       render_view,
       fullscreen_copy_texture_bind_group,
@@ -1215,7 +1217,7 @@ impl Renderer {
       .create_view(&TextureViewDescriptor::default());
 
     let world_to_screen_space =
-      &self.screen.perspective * &scene.player_camera.world_transform(view_direction);
+      &self.screen.projection_matrix * &scene.player_camera.world_transform(view_direction);
     self.queue.write_buffer(
       &self.block_world_to_screen_transform_buffer,
       0,

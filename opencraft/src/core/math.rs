@@ -3,6 +3,7 @@ pub mod angle;
 pub mod bivec3;
 pub mod intersect;
 pub mod mat4;
+pub mod projection;
 pub mod rotor3;
 pub mod segment3;
 pub mod vec2;
