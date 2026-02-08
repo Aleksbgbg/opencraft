@@ -5,7 +5,7 @@ use crate::core::math::{X_AXIS, Y_AXIS, Z_AXIS};
 use std::ops::{Index, IndexMut, Mul};
 use zerocopy::{Immutable, IntoBytes};
 
-// Shaders are column-major
+// Shaders use a column-major memory layout for matrices
 type Column = [f32; 4];
 
 #[repr(C)]
@@ -28,14 +28,14 @@ impl Mat4x4 {
 impl Index<(usize, usize)> for Mat4x4 {
   type Output = f32;
 
-  fn index(&self, (x, y): (usize, usize)) -> &Self::Output {
-    &self.values[x][y]
+  fn index(&self, (col, row): (usize, usize)) -> &Self::Output {
+    &self.values[col][row]
   }
 }
 
 impl IndexMut<(usize, usize)> for Mat4x4 {
-  fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Self::Output {
-    &mut self.values[x][y]
+  fn index_mut(&mut self, (col, row): (usize, usize)) -> &mut Self::Output {
+    &mut self.values[col][row]
   }
 }
 
