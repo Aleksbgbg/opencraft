@@ -58,7 +58,7 @@ use zerocopy::{Immutable, IntoBytes};
 const FONT_SCALE: f32 = 24.0;
 
 static HORIZONTAL_FOV: LazyLock<Angle> = LazyLock::new(|| Angle::degrees(110.0));
-const Z_NEAR: f32 = 0.01;
+const Z_NEAR: f32 = 0.1;
 const Z_FAR: f32 = 1000.0;
 
 const X_POS: f32 = CUBE_EXTENT;
