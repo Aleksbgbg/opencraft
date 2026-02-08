@@ -53,7 +53,7 @@ use zerocopy::{Immutable, IntoBytes};
 
 const FONT_SCALE: f32 = 24.0;
 
-static FOV: LazyLock<Angle> = LazyLock::new(|| Angle::degrees(75.0));
+static HORIZONTAL_FOV: LazyLock<Angle> = LazyLock::new(|| Angle::degrees(110.0));
 const Z_NEAR: f32 = 0.01;
 const Z_FAR: f32 = 1000.0;
 
@@ -357,7 +357,7 @@ impl ScreenSpaceResources {
       perspective: mat4::perspective(
         width.coerce_lossy(),
         height.coerce_lossy(),
-        *FOV,
+        *HORIZONTAL_FOV,
         Z_NEAR,
         Z_FAR,
       ),

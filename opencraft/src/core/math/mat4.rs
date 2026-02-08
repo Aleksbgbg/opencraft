@@ -57,14 +57,20 @@ impl Mul<&Mat4x4> for &Mat4x4 {
   }
 }
 
-pub fn perspective(width: f32, height: f32, fov: Angle, z_near: f32, z_far: f32) -> Mat4x4 {
-  let aspect_ratio = height / width;
-  let projection_distance = 1.0 / (fov / 2.0).tan();
+pub fn perspective(
+  width: f32,
+  height: f32,
+  horizontal_fov: Angle,
+  z_near: f32,
+  z_far: f32,
+) -> Mat4x4 {
+  let projection_distance = 1.0 / (horizontal_fov / 2.0).tan();
+  let inverse_aspect_ratio = width / height;
   let depth_scale = z_far / (z_far - z_near);
 
   let mut mat = Mat4x4::default();
-  mat[(0, 0)] = aspect_ratio * projection_distance;
-  mat[(1, 1)] = projection_distance;
+  mat[(0, 0)] = projection_distance;
+  mat[(1, 1)] = inverse_aspect_ratio * projection_distance;
   mat[(2, 2)] = depth_scale;
   mat[(2, 3)] = 1.0;
   mat[(3, 2)] = -z_near * depth_scale;
