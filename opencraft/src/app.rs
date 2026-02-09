@@ -162,6 +162,8 @@ impl ApplicationHandler<AppEvent> for App {
         game.resize(window.inner_size());
       }
       WindowEvent::MouseInput { state, button, .. } => {
+        cursor_lock.try_user_requested_lock(window);
+
         if state == ElementState::Released {
           game.mouse_release(button);
         }
@@ -175,6 +177,8 @@ impl ApplicationHandler<AppEvent> for App {
         ..
       } => match state {
         ElementState::Pressed => {
+          cursor_lock.try_user_requested_lock(window);
+
           if let PhysicalKey::Code(code) = physical_key {
             match code {
               #[cfg(not(target_family = "wasm"))]
@@ -188,12 +192,6 @@ impl ApplicationHandler<AppEvent> for App {
         }
         ElementState::Released => {
           if let PhysicalKey::Code(code) = physical_key {
-            #[allow(clippy::single_match)]
-            match code {
-              KeyCode::F11 => cursor_lock.try_user_requested_lock(window),
-              _ => {}
-            }
-
             game.release(code);
           }
         }
