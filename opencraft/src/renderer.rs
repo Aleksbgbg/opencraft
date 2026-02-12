@@ -15,6 +15,7 @@ use crate::core::math::mat4;
 use crate::core::math::mat4::Mat4x4;
 use crate::core::math::projection::Perspective;
 use crate::core::math::vec2::Vec2;
+use crate::core::math::vec3::Vec3;
 use crate::core::poll_on_interval::PollOnInterval;
 use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil};
 use crate::core::work_queue::{Channel, Priority, WorkQueue};
@@ -77,117 +78,117 @@ const Z_NEG: f32 = -CUBE_EXTENT;
 pub const CUBE_VERTICES: &[Vertex] = &[
   // +X face
   Vertex {
-    position: [X_POS, Y_POS, Z_NEG],
+    position: Vec3::new(X_POS, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_POS, Y_POS, Z_POS],
+    position: Vec3::new(X_POS, Y_POS, Z_POS),
   },
   Vertex {
-    position: [X_POS, Y_NEG, Z_NEG],
+    position: Vec3::new(X_POS, Y_NEG, Z_NEG),
   },
   Vertex {
-    position: [X_POS, Y_NEG, Z_NEG],
+    position: Vec3::new(X_POS, Y_NEG, Z_NEG),
   },
   Vertex {
-    position: [X_POS, Y_POS, Z_POS],
+    position: Vec3::new(X_POS, Y_POS, Z_POS),
   },
   Vertex {
-    position: [X_POS, Y_NEG, Z_POS],
+    position: Vec3::new(X_POS, Y_NEG, Z_POS),
   },
   // -X face
   Vertex {
-    position: [X_NEG, Y_POS, Z_POS],
+    position: Vec3::new(X_NEG, Y_POS, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_POS, Z_NEG],
+    position: Vec3::new(X_NEG, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_POS],
+    position: Vec3::new(X_NEG, Y_NEG, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_POS],
+    position: Vec3::new(X_NEG, Y_NEG, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_POS, Z_NEG],
+    position: Vec3::new(X_NEG, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_NEG],
+    position: Vec3::new(X_NEG, Y_NEG, Z_NEG),
   },
   // +Y face
   Vertex {
-    position: [X_POS, Y_POS, Z_NEG],
+    position: Vec3::new(X_POS, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_NEG, Y_POS, Z_NEG],
+    position: Vec3::new(X_NEG, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_POS, Y_POS, Z_POS],
+    position: Vec3::new(X_POS, Y_POS, Z_POS),
   },
   Vertex {
-    position: [X_POS, Y_POS, Z_POS],
+    position: Vec3::new(X_POS, Y_POS, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_POS, Z_NEG],
+    position: Vec3::new(X_NEG, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_NEG, Y_POS, Z_POS],
+    position: Vec3::new(X_NEG, Y_POS, Z_POS),
   },
   // -Y face
   Vertex {
-    position: [X_POS, Y_NEG, Z_POS],
+    position: Vec3::new(X_POS, Y_NEG, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_POS],
+    position: Vec3::new(X_NEG, Y_NEG, Z_POS),
   },
   Vertex {
-    position: [X_POS, Y_NEG, Z_NEG],
+    position: Vec3::new(X_POS, Y_NEG, Z_NEG),
   },
   Vertex {
-    position: [X_POS, Y_NEG, Z_NEG],
+    position: Vec3::new(X_POS, Y_NEG, Z_NEG),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_POS],
+    position: Vec3::new(X_NEG, Y_NEG, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_NEG],
+    position: Vec3::new(X_NEG, Y_NEG, Z_NEG),
   },
   // +Z face
   Vertex {
-    position: [X_POS, Y_POS, Z_POS],
+    position: Vec3::new(X_POS, Y_POS, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_POS, Z_POS],
+    position: Vec3::new(X_NEG, Y_POS, Z_POS),
   },
   Vertex {
-    position: [X_POS, Y_NEG, Z_POS],
+    position: Vec3::new(X_POS, Y_NEG, Z_POS),
   },
   Vertex {
-    position: [X_POS, Y_NEG, Z_POS],
+    position: Vec3::new(X_POS, Y_NEG, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_POS, Z_POS],
+    position: Vec3::new(X_NEG, Y_POS, Z_POS),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_POS],
+    position: Vec3::new(X_NEG, Y_NEG, Z_POS),
   },
   // -Z face
   Vertex {
-    position: [X_NEG, Y_POS, Z_NEG],
+    position: Vec3::new(X_NEG, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_POS, Y_POS, Z_NEG],
+    position: Vec3::new(X_POS, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_NEG],
+    position: Vec3::new(X_NEG, Y_NEG, Z_NEG),
   },
   Vertex {
-    position: [X_NEG, Y_NEG, Z_NEG],
+    position: Vec3::new(X_NEG, Y_NEG, Z_NEG),
   },
   Vertex {
-    position: [X_POS, Y_POS, Z_NEG],
+    position: Vec3::new(X_POS, Y_POS, Z_NEG),
   },
   Vertex {
-    position: [X_POS, Y_NEG, Z_NEG],
+    position: Vec3::new(X_POS, Y_NEG, Z_NEG),
   },
 ];
 

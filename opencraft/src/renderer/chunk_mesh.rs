@@ -1,5 +1,6 @@
 use crate::core::math::Direction;
 use crate::core::math::intersect::BoxFace;
+use crate::core::math::vec2::Vec2;
 use crate::model::block::Block;
 use crate::model::chunk::Chunk;
 use crate::model::position::BlockPosition;
@@ -135,22 +136,16 @@ fn generate_face_mesh(
   let texture_quad = texture_atlas.generate_texture_coordinates(block, face);
 
   for (index, vertex) in vertices[new_vertices_start..].iter_mut().enumerate() {
-    vertex.position[0] += world_position.x();
-    vertex.position[1] += world_position.y();
-    vertex.position[2] += world_position.z();
-
-    let (tex_x, tex_y) = match index {
-      0 => (texture_quad.left, texture_quad.top),
-      1 => (texture_quad.right, texture_quad.top),
-      2 => (texture_quad.left, texture_quad.bot),
-      3 => (texture_quad.left, texture_quad.bot),
-      4 => (texture_quad.right, texture_quad.top),
-      5 => (texture_quad.right, texture_quad.bot),
+    vertex.position += world_position;
+    vertex.texture_coordinate = match index {
+      0 => Vec2::new(texture_quad.left, texture_quad.top),
+      1 => Vec2::new(texture_quad.right, texture_quad.top),
+      2 => Vec2::new(texture_quad.left, texture_quad.bot),
+      3 => Vec2::new(texture_quad.left, texture_quad.bot),
+      4 => Vec2::new(texture_quad.right, texture_quad.top),
+      5 => Vec2::new(texture_quad.right, texture_quad.bot),
       _ => unreachable!("invalid index"),
     };
-
-    vertex.texture_coordinate[0] = tex_x;
-    vertex.texture_coordinate[1] = tex_y;
   }
 }
 

@@ -1,14 +1,16 @@
+use crate::core::math::vec2::Vec2;
+use crate::core::math::vec3::Vec3;
 use zerocopy::{Immutable, IntoBytes};
 
 #[repr(C)]
 #[derive(Clone, Copy, Immutable, IntoBytes)]
 pub struct Vertex {
-  pub position: [f32; 3],
+  pub position: Vec3,
 }
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Immutable, IntoBytes)]
 pub struct BlockVertex {
-  pub position: [f32; 3],
-  pub texture_coordinate: [f32; 2],
+  pub position: Vec3,
+  pub texture_coordinate: Vec2,
 }
