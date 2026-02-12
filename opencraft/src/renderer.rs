@@ -4,6 +4,7 @@ mod display;
 mod font_atlas;
 mod text_encoder;
 pub mod texture_atlas;
+mod vertex;
 
 use crate::camera::Direction;
 use crate::core::math;
@@ -27,6 +28,7 @@ use crate::renderer::display::Bytes;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
 use crate::renderer::text_encoder::{Anchor, EMPTY_LINE, TextEncoder};
 use crate::renderer::texture_atlas::TextureAtlas;
+use crate::renderer::vertex::Vertex;
 use crate::resources::Texture;
 use crate::{core, platform};
 use anyhow::Result;
@@ -104,13 +106,6 @@ const TEX_Z_NEG_LEFT: f32 = 16.0 / TEX_WIDTH;
 const TEX_Z_NEG_RIGHT: f32 = 32.0 / TEX_WIDTH;
 const TEX_Z_NEG_TOP: f32 = 32.0 / TEX_HEIGHT;
 const TEX_Z_NEG_BOTTOM: f32 = 48.0 / TEX_HEIGHT;
-
-#[repr(C)]
-#[derive(Clone, Copy, Immutable, IntoBytes)]
-pub struct Vertex {
-  position: [f32; 3],
-  texture_coordinate: [f32; 2],
-}
 
 pub const VERTICES: &[Vertex] = &[
   // +X face
