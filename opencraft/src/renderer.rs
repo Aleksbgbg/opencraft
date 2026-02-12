@@ -28,7 +28,7 @@ use crate::renderer::display::Bytes;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
 use crate::renderer::text_encoder::{Anchor, EMPTY_LINE, TextEncoder};
 use crate::renderer::texture_atlas::TextureAtlas;
-use crate::renderer::vertex::Vertex;
+use crate::renderer::vertex::BlockVertex;
 use crate::resources::Texture;
 use crate::{core, platform};
 use anyhow::Result;
@@ -107,154 +107,154 @@ const TEX_Z_NEG_RIGHT: f32 = 32.0 / TEX_WIDTH;
 const TEX_Z_NEG_TOP: f32 = 32.0 / TEX_HEIGHT;
 const TEX_Z_NEG_BOTTOM: f32 = 48.0 / TEX_HEIGHT;
 
-pub const VERTICES: &[Vertex] = &[
+pub const VERTICES: &[BlockVertex] = &[
   // +X face
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_NEG],
     texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_POS],
     texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_POS],
     texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_POS],
     texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_TOP],
   },
   // -X face
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_POS],
     texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_NEG],
     texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_POS],
     texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_POS],
     texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_NEG],
     texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_BOTTOM],
   },
   // +Y face
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_NEG],
     texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_NEG],
     texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_POS],
     texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_POS],
     texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_NEG],
     texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_POS],
     texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_BOTTOM],
   },
   // -Y face
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_POS],
     texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_POS],
     texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_POS],
     texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_BOTTOM],
   },
   // +Z face
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_POS],
     texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_POS],
     texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_POS],
     texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_POS],
     texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_POS],
     texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_POS],
     texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_TOP],
   },
   // -Z face
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_POS, Z_NEG],
     texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_NEG],
     texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_NEG, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_BOTTOM],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_POS, Z_NEG],
     texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_TOP],
   },
-  Vertex {
+  BlockVertex {
     position: [X_POS, Y_NEG, Z_NEG],
     texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_BOTTOM],
   },
@@ -599,7 +599,7 @@ impl Renderer {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<Vertex>().coerce(),
+          array_stride: mem::size_of::<BlockVertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x2],
         }],
@@ -683,7 +683,7 @@ impl Renderer {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<Vertex>().coerce(),
+          array_stride: mem::size_of::<BlockVertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3],
         }],
@@ -766,7 +766,7 @@ impl Renderer {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<Vertex>().coerce(),
+          array_stride: mem::size_of::<BlockVertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3],
         }],

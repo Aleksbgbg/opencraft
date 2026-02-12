@@ -5,7 +5,7 @@ use crate::model::chunk::Chunk;
 use crate::model::position::BlockPosition;
 use crate::model::{iterators, layout};
 use crate::renderer::texture_atlas::TextureAtlas;
-use crate::renderer::{VERTICES, Vertex};
+use crate::renderer::{BlockVertex, VERTICES};
 use arrayvec::ArrayVec;
 use std::collections::HashMap;
 use strum::{EnumCount, IntoEnumIterator};
@@ -110,7 +110,7 @@ fn generate_chunk_face_set(chunk: &Chunk) -> HashMap<BlockPosition, FaceSet> {
 }
 
 fn generate_face_mesh(
-  vertices: &mut Vec<Vertex>,
+  vertices: &mut Vec<BlockVertex>,
   texture_atlas: &TextureAtlas,
   block_position: BlockPosition,
   block: Block,
@@ -197,7 +197,11 @@ impl ChunkMesh {
     }
   }
 
-  pub fn generate_vertices(&mut self, texture_atlas: &TextureAtlas, chunk: &Chunk) -> Vec<Vertex> {
+  pub fn generate_vertices(
+    &mut self,
+    texture_atlas: &TextureAtlas,
+    chunk: &Chunk,
+  ) -> Vec<BlockVertex> {
     let mut vertices = Vec::with_capacity(self.last_vertices_len);
 
     for (&block_position, face_set) in &self.faces {
