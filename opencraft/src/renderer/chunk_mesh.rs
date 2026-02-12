@@ -5,7 +5,7 @@ use crate::model::chunk::Chunk;
 use crate::model::position::BlockPosition;
 use crate::model::{iterators, layout};
 use crate::renderer::texture_atlas::TextureAtlas;
-use crate::renderer::{BlockVertex, VERTICES};
+use crate::renderer::{BlockVertex, CUBE_VERTICES};
 use arrayvec::ArrayVec;
 use std::collections::HashMap;
 use strum::{EnumCount, IntoEnumIterator};
@@ -121,7 +121,14 @@ fn generate_face_mesh(
   let base_cube_face_offset = face_to_index(face);
   let base_cube_vertex_offset = base_cube_face_offset * FACE_VERTICES;
 
-  vertices.extend(&VERTICES[base_cube_vertex_offset..base_cube_vertex_offset + FACE_VERTICES]);
+  vertices.extend(
+    CUBE_VERTICES[base_cube_vertex_offset..base_cube_vertex_offset + FACE_VERTICES]
+      .iter()
+      .map(|vertex| BlockVertex {
+        position: vertex.position,
+        ..Default::default()
+      }),
+  );
 
   let new_vertices_start = vertices.len() - FACE_VERTICES;
   let world_position = layout::block_to_world(block_position);

@@ -28,7 +28,7 @@ use crate::renderer::display::Bytes;
 use crate::renderer::font_atlas::{FontAtlas, TextVertex};
 use crate::renderer::text_encoder::{Anchor, EMPTY_LINE, TextEncoder};
 use crate::renderer::texture_atlas::TextureAtlas;
-use crate::renderer::vertex::BlockVertex;
+use crate::renderer::vertex::{BlockVertex, Vertex};
 use crate::resources::Texture;
 use crate::{core, platform};
 use anyhow::Result;
@@ -74,189 +74,120 @@ const Y_NEG: f32 = -CUBE_EXTENT;
 const Z_POS: f32 = CUBE_EXTENT;
 const Z_NEG: f32 = -CUBE_EXTENT;
 
-const TEX_WIDTH: f32 = 48.0;
-const TEX_HEIGHT: f32 = 64.0;
-
-const TEX_X_POS_LEFT: f32 = 32.0 / TEX_WIDTH;
-const TEX_X_POS_RIGHT: f32 = 48.0 / TEX_WIDTH;
-const TEX_X_POS_TOP: f32 = 16.0 / TEX_HEIGHT;
-const TEX_X_POS_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
-
-const TEX_X_NEG_LEFT: f32 = 0.0 / TEX_WIDTH;
-const TEX_X_NEG_RIGHT: f32 = 16.0 / TEX_WIDTH;
-const TEX_X_NEG_TOP: f32 = 16.0 / TEX_HEIGHT;
-const TEX_X_NEG_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
-
-const TEX_Y_POS_LEFT: f32 = 16.0 / TEX_WIDTH;
-const TEX_Y_POS_RIGHT: f32 = 32.0 / TEX_WIDTH;
-const TEX_Y_POS_TOP: f32 = 16.0 / TEX_HEIGHT;
-const TEX_Y_POS_BOTTOM: f32 = 32.0 / TEX_HEIGHT;
-
-const TEX_Y_NEG_LEFT: f32 = 16.0 / TEX_WIDTH;
-const TEX_Y_NEG_RIGHT: f32 = 32.0 / TEX_WIDTH;
-const TEX_Y_NEG_TOP: f32 = 48.0 / TEX_HEIGHT;
-const TEX_Y_NEG_BOTTOM: f32 = 64.0 / TEX_HEIGHT;
-
-const TEX_Z_POS_LEFT: f32 = 16.0 / TEX_WIDTH;
-const TEX_Z_POS_RIGHT: f32 = 32.0 / TEX_WIDTH;
-const TEX_Z_POS_TOP: f32 = 0.0 / TEX_HEIGHT;
-const TEX_Z_POS_BOTTOM: f32 = 16.0 / TEX_HEIGHT;
-
-const TEX_Z_NEG_LEFT: f32 = 16.0 / TEX_WIDTH;
-const TEX_Z_NEG_RIGHT: f32 = 32.0 / TEX_WIDTH;
-const TEX_Z_NEG_TOP: f32 = 32.0 / TEX_HEIGHT;
-const TEX_Z_NEG_BOTTOM: f32 = 48.0 / TEX_HEIGHT;
-
-pub const VERTICES: &[BlockVertex] = &[
+pub const CUBE_VERTICES: &[Vertex] = &[
   // +X face
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_POS],
-    texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_POS],
-    texture_coordinate: [TEX_X_POS_LEFT, TEX_X_POS_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_X_POS_RIGHT, TEX_X_POS_TOP],
   },
   // -X face
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_POS],
-    texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_X_NEG_RIGHT, TEX_X_NEG_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_X_NEG_LEFT, TEX_X_NEG_BOTTOM],
   },
   // +Y face
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_POS],
-    texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_POS],
-    texture_coordinate: [TEX_Y_POS_LEFT, TEX_Y_POS_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_POS],
-    texture_coordinate: [TEX_Y_POS_RIGHT, TEX_Y_POS_BOTTOM],
   },
   // -Y face
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_Y_NEG_LEFT, TEX_Y_NEG_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_Y_NEG_RIGHT, TEX_Y_NEG_BOTTOM],
   },
   // +Z face
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_POS],
-    texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_POS],
-    texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_Z_POS_RIGHT, TEX_Z_POS_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_POS],
-    texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_POS],
-    texture_coordinate: [TEX_Z_POS_LEFT, TEX_Z_POS_TOP],
   },
   // -Z face
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_NEG, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_Z_NEG_LEFT, TEX_Z_NEG_BOTTOM],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_POS, Z_NEG],
-    texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_TOP],
   },
-  BlockVertex {
+  Vertex {
     position: [X_POS, Y_NEG, Z_NEG],
-    texture_coordinate: [TEX_Z_NEG_RIGHT, TEX_Z_NEG_BOTTOM],
   },
 ];
 
@@ -393,7 +324,7 @@ pub struct Renderer {
 
   screen: ScreenSpaceResources,
 
-  vertex_buffer: Buffer,
+  cube_vertex_buffer: Buffer,
 
   block_world_to_screen_transform_buffer: Buffer,
   block_world_to_screen_transform_bind_group: BindGroup,
@@ -470,9 +401,9 @@ impl Renderer {
 
     surface.configure(&device, &config);
 
-    let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-      label: Some("Vertex Buffer"),
-      contents: VERTICES.as_bytes(),
+    let cube_vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+      label: Some("Cube Vertex Buffer"),
+      contents: CUBE_VERTICES.as_bytes(),
       usage: BufferUsages::VERTEX,
     });
 
@@ -683,7 +614,7 @@ impl Renderer {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<BlockVertex>().coerce(),
+          array_stride: mem::size_of::<Vertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3],
         }],
@@ -766,7 +697,7 @@ impl Renderer {
         entry_point: Some("vs_main"),
         compilation_options: PipelineCompilationOptions::default(),
         buffers: &[VertexBufferLayout {
-          array_stride: mem::size_of::<BlockVertex>().coerce(),
+          array_stride: mem::size_of::<Vertex>().coerce(),
           step_mode: VertexStepMode::Vertex,
           attributes: &vertex_attr_array![0 => Float32x3],
         }],
@@ -1131,7 +1062,7 @@ impl Renderer {
       config,
       default_sampler,
       screen,
-      vertex_buffer,
+      cube_vertex_buffer,
       block_world_to_screen_transform_buffer,
       block_world_to_screen_transform_bind_group,
       block_pipeline,
@@ -1281,8 +1212,8 @@ impl Renderer {
 
       render_pass.set_pipeline(&self.skybox_pipeline);
       render_pass.set_bind_group(0, &self.skybox_transform_bind_group, &[]);
-      render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-      render_pass.draw(0..VERTICES.len().coerce(), 0..1);
+      render_pass.set_vertex_buffer(0, self.cube_vertex_buffer.slice(..));
+      render_pass.draw(0..CUBE_VERTICES.len().coerce(), 0..1);
 
       if let Some(target_block) = &scene.target_block {
         self.queue.write_buffer(
@@ -1293,7 +1224,7 @@ impl Renderer {
 
         render_pass.set_pipeline(&self.block_outline_pipeline);
         render_pass.set_bind_group(0, &self.block_outline_transform_bind_group, &[]);
-        render_pass.draw(0..VERTICES.len().coerce(), 0..1);
+        render_pass.draw(0..CUBE_VERTICES.len().coerce(), 0..1);
       }
 
       render_pass.set_pipeline(&self.block_pipeline);
