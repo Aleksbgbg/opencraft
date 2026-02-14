@@ -5,7 +5,7 @@ pub mod block {
   pub const PANE_DIMENSION_PX_F32: f32 = PANE_DIMENSION_PX as f32;
 }
 
-fn offset_2d((x, y): (usize, usize), width: usize) -> usize {
+pub fn offset_2d((x, y): (usize, usize), width: usize) -> usize {
   (y * width) + x
 }
 

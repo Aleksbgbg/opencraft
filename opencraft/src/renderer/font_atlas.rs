@@ -3,6 +3,7 @@ use crate::core::math::vec2::Vec2;
 use crate::core::type_conversions::{Coerce, CoerceLossy, CoerceLossyCeil, CoerceLossyFloor};
 use crate::platform::ResourceReader;
 use anyhow::Result;
+use base::texture;
 use rusttype::Scale;
 use std::collections::HashMap;
 use winit::dpi::PhysicalSize;
@@ -64,7 +65,7 @@ impl FontAtlas {
         let x = bounding_box.min.x.coerce() + Coerce::<usize>::coerce(x);
         let y = bounding_box.min.y.coerce() + Coerce::<usize>::coerce(y);
 
-        texture[(y * pixel_width) + x] = math::normalized_f32_to_u8(alpha);
+        texture[texture::offset_2d((x, y), pixel_width)] = math::normalized_f32_to_u8(alpha);
       });
 
       glyphs.insert(
